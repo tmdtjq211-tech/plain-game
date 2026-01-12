@@ -1,4 +1,5 @@
-import React from "react";
+import React from "react"; // ⬅️ 이 줄이 없어서 그동안 인식이 안 된 겁니다!
+
 export default function RootLayout({
   children,
 }: {
