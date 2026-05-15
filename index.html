@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>실력 점검 시험 시스템</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
 <style>
     :root {
         --primary: #1e3a8a;
@@ -13,6 +14,7 @@
         --text-main: #333333;
         --success: #10b981;
         --error: #ef4444;
+        --correct-blue: #2563eb;
     }
     body {
         font-family: 'Malgun Gothic', sans-serif;
@@ -73,6 +75,11 @@
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
     .modal-content { background: #fff; padding: 25px; border-radius: 12px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative; }
     .close-modal { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #888; border: none; background: transparent; font-weight: bold; }
+
+    /* 채점 결과 전용 스타일 */
+    .diff-correct { color: var(--correct-blue); font-weight: bold; }
+    .diff-error { color: var(--error); font-weight: bold; background-color: #fef2f2; border-radius: 3px; padding: 0 2px; }
+    .result-content-box { padding: 12px; border-radius: 8px; margin-top: 5px; line-height: 1.6; font-size: 15px; word-break: keep-all; }
 </style>
 </head>
 <body>
@@ -236,6 +243,7 @@ let isPractice = false;
 let groupedAdminData = []; 
 const $ = id => document.getElementById(id);
 
+// 채점용 유사도 계산
 function getSim(s1, s2) {
     const a = s1.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
     const b = s2.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
@@ -250,6 +258,24 @@ function getSim(s1, s2) {
         }
     }
     return Math.max(0, Math.round((1 - m[b.length][a.length] / Math.max(a.length, b.length)) * 100));
+}
+
+// 오답(빨강) 정답(파랑) 컬러 표시 생성기
+function getColoredDiffHtml(userText, correctText) {
+    if (!userText) return '<span style="color:#999;">(미입력)</span>';
+    if (typeof Diff === 'undefined') return userText; // Fallback
+    
+    let diff = Diff.diffChars(correctText, userText);
+    let html = '';
+    diff.forEach(part => {
+        let val = part.value.replace(/\n/g, '<br>');
+        if (part.added) {
+            html += `<span class="diff-error">${val}</span>`;
+        } else if (!part.removed) {
+            html += `<span class="diff-correct">${val}</span>`;
+        }
+    });
+    return html;
 }
 
 window.onload = async () => {
@@ -327,21 +353,29 @@ window.submitExam = async () => {
     let detailsForDB = [];
     
     currentQuestions.forEach((q, i) => {
-        const userText = document.querySelector(`.ans[data-qi="${i}"]`).value;
+        const userText = document.querySelector(`.ans[data-qi="${i}"]`).value.trim();
         const acc = getSim(userText, q.text);
         totalAcc += acc;
         
         let bc = acc > 90 ? 'acc-high' : acc > 60 ? 'acc-mid' : 'acc-low';
+        let coloredUserText = getColoredDiffHtml(userText, q.text);
+        
         h += `<div class="question-box" style="margin-bottom:15px;">
                 <div class="q-title">${q.title} <span class="acc-badge ${bc}">정확도 ${acc}%</span></div>
-                <div style="font-size:14px; margin-bottom:8px;">
+                
+                <div style="font-size:14px; margin-bottom:12px;">
                     <strong style="color:#555;">[나의 작성 답안]</strong><br>
-                    <div style="padding:10px; background:#f9f9f9; border:1px solid #eee; border-radius:5px; margin-top:5px; line-height:1.5;">${userText || '(미입력)'}</div>
+                    <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">
+                        ${coloredUserText}
+                    </div>
                 </div>
-                ${acc < 100 ? `<div style="font-size:14px; margin-top:10px;">
-                    <strong style="color:var(--primary);">[실제 정답]</strong><br>
-                    <div style="padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:5px; margin-top:5px; line-height:1.5;">${q.text}</div>
-                </div>` : ''}
+                
+                <div style="font-size:14px;">
+                    <strong style="color:#10b981;">[총 정답]</strong><br>
+                    <div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
+                        ${q.text}
+                    </div>
+                </div>
             </div>`;
         detailsForDB.push({ title: q.title, user: userText, correct: q.text, acc: acc });
     });
@@ -464,14 +498,24 @@ window.renderAttemptDetail = (key, idx) => {
     } else {
         a.details.forEach(q => {
             let color = q.acc > 90 ? 'var(--success)' : q.acc > 60 ? '#f59e0b' : 'var(--error)';
+            let coloredUserText = getColoredDiffHtml(q.user, q.correct);
+            
             h += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
                     <strong style="color:var(--primary);">${q.title}</strong> 
                     <span style="color:white; background:${color}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${q.acc}%</span>
-                    <div style="margin-top:8px; font-size:13px;">
-                        <div style="color:#666; font-weight:bold;">[제출 답안]</div>
-                        <div style="padding:8px; background:#f9f9f9; border-radius:4px; margin-bottom:5px;">${q.user || '(미입력)'}</div>
-                        <div style="color:var(--primary); font-weight:bold;">[정답]</div>
-                        <div style="padding:8px; background:#eff6ff; border-radius:4px;">${q.correct}</div>
+                    
+                    <div style="margin-top:12px; font-size:13px;">
+                        <strong style="color:#666;">[제출 답안]</strong>
+                        <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">
+                            ${coloredUserText}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:10px; font-size:13px;">
+                        <strong style="color:#10b981;">[총 정답]</strong>
+                        <div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">
+                            ${q.correct}
+                        </div>
                     </div>
                   </div>`;
         });
