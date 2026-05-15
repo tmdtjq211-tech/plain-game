@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title> 실력 점검 시험 시스템</title>
+<title>실력 점검 시험 시스템</title>
 <style>
     :root {
         --primary: #1e3a8a;
@@ -29,6 +29,8 @@
         position: relative;
     }
     h2 { color: var(--primary); text-align: center; }
+    h3 { color: var(--primary); margin-top: 0; }
+    
     .btn {
         width: 100%; padding: 14px;
         background-color: var(--primary); color: white;
@@ -38,6 +40,8 @@
     .btn:hover { background-color: #1e40af; }
     .btn.btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
     .btn.btn-secondary { background: #6b7280; }
+    .btn.btn-danger { background: var(--error); }
+    .btn-sm { width: auto; padding: 6px 12px; font-size: 12px; margin-top: 0; }
     
     .input-group { margin-bottom: 15px; }
     .input-group label { display: block; margin-bottom: 5px; font-weight: bold; color: var(--primary); }
@@ -47,21 +51,28 @@
     
     .question-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
     .q-title { font-weight: bold; color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--secondary); padding-bottom: 5px; }
-    textarea { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; min-height: 100px; resize: vertical; box-sizing: border-box; }
+    textarea { width: 100%; padding: 15px; border: 1px solid #ccc; border-radius: 8px; min-height: 150px; resize: vertical; box-sizing: border-box; font-size: 15px; line-height: 1.6; }
+    textarea:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(30,58,138,0.1); }
     
     .score-board { background: #fffbeb; padding: 20px; border-radius: 10px; text-align: center; border: 2px solid var(--secondary); margin-bottom: 20px; }
     .score-num { font-size: 36px; font-weight: bold; color: var(--primary); }
     
-    .acc-badge { padding: 3px 8px; border-radius: 4px; color: white; font-size: 12px; font-weight: bold; margin-left: 10px; }
+    .acc-badge { padding: 3px 8px; border-radius: 4px; color: white; font-size: 12px; font-weight: bold; margin-left: 10px; display: inline-block; }
     .acc-high { background: var(--success); }
     .acc-mid { background: #f59e0b; }
     .acc-low { background: var(--error); }
 
     .tree-view { border: 1px solid #ddd; padding: 15px; border-radius: 8px; max-height: 300px; overflow-y: auto; background: #fff; }
     .hidden { display: none !important; }
-    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-    th { background: #f1f5f9; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+    th, td { border: 1px solid #ddd; padding: 10px; text-align: center; word-break: keep-all; }
+    th { background: #f1f5f9; font-weight: bold; }
+    
+    .admin-tools { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; background: #f9fafb; padding: 10px; border-radius: 8px; border: 1px solid #eee; }
+    
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; box-sizing: border-box; }
+    .modal-content { background: #fff; padding: 25px; border-radius: 12px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; position: relative; }
+    .close-modal { position: absolute; top: 15px; right: 20px; font-size: 24px; cursor: pointer; color: #888; border: none; background: transparent; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -73,73 +84,124 @@
         
         <div class="input-group"><label>지역</label><input type="text" id="in-region" placeholder="예: 2지역"></div>
         <div class="input-group"><label>부서/과</label><input type="text" id="in-dept" placeholder="예: 청년회"></div>
-        <div class="input-group"><label>구역</label><input type="text" id="in-dist" placeholder="예: 2구역"></div>
+        <div class="input-group"><label>직책</label><input type="text" id="in-role" placeholder="예: 구역장"></div>
         <div class="input-group"><label>성함</label><input type="text" id="in-name" placeholder="예: 홍길동"></div>
         
-        <button class="btn" id="btn-exam" onclick="checkStart(false)">응시하기</button>
-        <button class="btn btn-outline" onclick="openPracticeSetup()">연습모드</button>
+        <div class="input-group">
+            <label>문제 출제 순서</label>
+            <select id="in-order">
+                <option value="random">랜덤 섞기</option>
+                <option value="sequential">말씀 순서대로</option>
+            </select>
+        </div>
+        
+        <button class="btn" id="btn-exam" onclick="checkStart(false)">응시하기 (기록 저장됨)</button>
+        <button class="btn btn-outline" onclick="openPracticeSetup()">연습모드 (기록 안됨)</button>
     </div>
 
     <div id="screen-practice-setup" class="hidden">
         <h2>연습모드 설정</h2>
         <div class="input-group"><label>연습할 성구 선택</label><div class="tree-view" id="practice-list"></div></div>
-        <div class="input-group">
-            <label>출제 방식</label>
-            <select id="practice-type">
-                <option value="chunk">덩어리째 연습</option>
-                <option value="verse">한 절씩 나누어 연습</option>
-            </select>
+        
+        <div style="display:flex; gap:10px;">
+            <div class="input-group" style="flex:1;">
+                <label>출제 방식</label>
+                <select id="practice-type">
+                    <option value="chunk">덩어리 전체 쓰기</option>
+                    <option value="verse">한 절씩 나누어 쓰기</option>
+                </select>
+            </div>
+            <div class="input-group" style="flex:1;">
+                <label>출제 순서</label>
+                <select id="practice-order">
+                    <option value="random">랜덤 섞기</option>
+                    <option value="sequential">말씀 순서대로</option>
+                </select>
+            </div>
         </div>
+
         <button class="btn" onclick="checkStart(true)">연습 시작</button>
-        <button class="btn btn-secondary" onclick="location.reload()">취소</button>
+        <button class="btn btn-secondary" onclick="location.reload()">취소 및 돌아가기</button>
     </div>
 
     <div id="screen-exam" class="hidden">
         <h2 id="exam-title">시험 응시</h2>
-        <div id="exam-info" style="text-align:right; font-size:13px; color:#666; margin-bottom:10px;"></div>
+        <div id="exam-info" style="text-align:right; font-size:13px; color:#666; margin-bottom:10px; font-weight:bold;"></div>
         <div id="question-container"></div>
-        <button class="btn" onclick="submitExam()" style="background: var(--success);">답안 제출</button>
+        <button class="btn" onclick="submitExam()" style="background: var(--success); font-size:18px; margin-top:30px;">답안 제출 및 채점하기</button>
     </div>
 
     <div id="screen-result" class="hidden">
         <h2>채점 결과</h2>
         <div class="score-board">
-            <div id="res-user"></div>
+            <div id="res-user" style="color:#666; font-size:14px; margin-bottom:5px;"></div>
             <div class="score-num" id="res-score">0점</div>
             <div id="res-acc" style="font-size:14px; margin-top:5px;">평균 정확도: 0%</div>
         </div>
         <div id="result-details"></div>
-        <button class="btn" onclick="location.reload()">처음으로</button>
+        
+        <div style="display:flex; gap:10px; margin-top:30px;">
+            <button class="btn" onclick="retakeExam()" style="margin-top:0;">재시험 보기</button>
+            <button class="btn btn-secondary" onclick="location.reload()" style="margin-top:0;">처음으로</button>
+        </div>
     </div>
 
     <div id="screen-admin-auth" class="hidden" style="text-align:center; padding:40px 0;">
         <h2>관리자 인증</h2>
-        <p>보안을 위해 관리자 계정으로 로그인해주세요.</p>
-        <button class="btn" onclick="adminLogin()" style="width:auto; padding:12px 30px;">구글 로그인</button>
+        <p style="color:#666;">보안을 위해 관리자 구글 계정으로 로그인해주세요.</p>
+        <button class="btn" onclick="adminLogin()" style="width:auto; padding:12px 30px; background:#4285f4;">구글 로그인</button>
         <button class="btn btn-secondary" onclick="location.reload()" style="width:auto;">취소</button>
     </div>
 
     <div id="screen-admin" class="hidden">
-        <h2>관리자 모드</h2>
-        <div class="input-group" style="background:#f9fafb; padding:15px; border-radius:8px;">
-            <label>시험 응시 활성화</label>
-            <select id="set-isopen"><option value="true">열림</option><option value="false">닫힘</option></select>
+        <h2>관리자 시스템</h2>
+        <div class="input-group" style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #ddd;">
+            <label>본 시험 응시 활성화</label>
+            <select id="set-isopen"><option value="true">열림 (응시 가능)</option><option value="false">닫힘 (응시 불가)</option></select>
         </div>
         <div class="input-group">
             <label>본 시험 출제 덩어리 선택</label>
             <div class="tree-view" id="admin-chunk-list"></div>
         </div>
-        <button class="btn" onclick="saveAdminSettings()">설정 저장</button>
-        <hr>
-        <h3>응시 현황</h3>
-        <div style="overflow-x:auto;"><table id="admin-res-table"><thead><tr><th>이름</th><th>점수</th><th>정확도</th><th>날짜</th></tr></thead><tbody></tbody></table></div>
-        <button class="btn btn-secondary" onclick="location.reload()">나가기</button>
+        <button class="btn" onclick="saveAdminSettings()">기본 설정 저장</button>
+        
+        <hr style="margin:30px 0;">
+        
+        <h3>응시자 데이터 관리 (재시험 통합)</h3>
+        <div class="admin-tools">
+            <div>
+                <label style="font-size:13px; font-weight:bold; margin-right:5px;">정렬:</label>
+                <select id="admin-sort" style="padding:5px; border-radius:4px; border:1px solid #ccc;" onchange="renderAdminTable()">
+                    <option value="dateDesc">최신순</option>
+                    <option value="scoreDesc">최고점수 순</option>
+                    <option value="nameAsc">이름순 (가나다)</option>
+                </select>
+            </div>
+            <button class="btn btn-sm" style="background:#10b981; margin:0;" onclick="downloadExcel()">엑셀 다운로드 (CSV)</button>
+        </div>
+        
+        <div style="overflow-x:auto;">
+            <table id="admin-res-table">
+                <thead><tr><th>소속/이름</th><th>최고점수</th><th>재시험여부</th><th>최근응시</th><th>관리</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        <button class="btn btn-secondary" onclick="location.reload()" style="margin-top:20px;">나가기</button>
+    </div>
+</div>
+
+<div id="modal-detail" class="modal-overlay hidden">
+    <div class="modal-content">
+        <button class="close-modal" onclick="$('modal-detail').classList.add('hidden')">&times;</button>
+        <h3 id="modal-title">응시자 상세 답안</h3>
+        <hr style="margin-bottom:15px; border:0; border-top:1px solid #eee;">
+        <div id="modal-body"></div>
     </div>
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -155,29 +217,28 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// 성경 데이터
 const bibleData = [
-    { id: "1", title: "계 1:1~3", verses: [{n:"1", t:"예수 그리스도의 계시라 이는 하나님이 그에게 주사 반드시 속히 될 일을 그 종들에게 보이시려고 그 천사를 그 종 요한에게 보내어 지시하신 것이라"}, {n:"2", t:"요한은 하나님의 말씀과 예수 그리스도의 증거 곧 자기의 본 것을 다 증거하였느니라"}, {n:"3", t:"이 예언의 말씀을 읽는 자와 듣는 자들과 그 가운데 기록한 것을 지키는 자들이 복이 있나니 때가 가까움이라"}]},
-    { id: "2", title: "계 3:12", verses: [{n:"12", t:"이기는 자는 내 하나님 성전에 기둥이 되게 하리니 그가 결코 다시 나가지 아니하리라 내가 하나님의 이름과 하나님의 성 곧 하늘에서 내 하나님께로부터 내려오는 새 예루살렘의 이름과 나의 새 이름을 그이 위에 기록하리라"}]},
-    { id: "3", title: "계 7:1~4", verses: [{n:"1", t:"이 일 후에 내가 네 천사가 땅 네 모퉁이에 선 것을 보니 땅의 사방의 바람을 붙잡아 바람으로 하여금 땅에나 바다에나 각종 나무에 불지 못하게 하더라"}, {n:"2", t:"또 보매 다른 천사가 살아 계신 하나님의 인을 가지고 해 돋는 데로부터 올라와서 땅과 바다를 해롭게 할 권세를 얻은 네 천사를 향하여 큰 소리로 외쳐"}, {n:"3", t:"가로되 우리가 우리 하나님의 종들의 이마에 인치기까지 땅이나 바다나 나무나 해하지 말라 하더라"}, {n:"4", t:"내가 인 맞은 자의 수를 들으니 이스라엘 자손의 각 지파 중에서 인 맞은 자들이 십사만 사천이니"}]},
-    { id: "4", title: "계 10:10~11", verses: [{n:"10", t:"내가 천사의 손에서 작은 책을 갖다 먹어버리니 내 입에는 꿀같이 다나 먹은 후에 내 배에서는 쓰게 되더라"}, {n:"11", t:"저가 내게 말하기를 네가 많은 백성과 나라와 방언과 임금에게 다시 예언하여야 하리라 하더라"}]},
-    { id: "5", title: "계 11:15", verses: [{n:"15", t:"일곱째 천사가 나팔을 불매 하늘에 큰 음성들이 나서 가로되 세상 나라가 우리 주와 그 그리스도의 나라가 되어 그가 세세토록 왕 노릇 하시리로다 하니"}]},
-    { id: "6", title: "계 14:1~5", verses: [{n:"1", t:"또 내가 보니 보라 어린양이 시온산에 섰고 그와 함께 십사만 사천이 섰는데 그 이마에 어린양의 이름과 그 아버지의 이름을 쓴 것이 있도다"}, {n:"2", t:"내가 하늘에서 나는 소리를 들으니 많은 물소리도 같고 큰 뇌성도 같은데 내게 들리는 소리는 거문고 타는 자들의 그 거문고 타는 것 같더라"}, {n:"3", t:"저희가 보좌와 네 생물과 장로들 앞에서 새 노래를 부르니 땅에서 구속함을 얻은 십사만 사천인밖에는 능히 이 노래를 배울 자가 없더라"}, {n:"4", t:"이 사람들은 여자로 더불어 더럽히지 아니하고 정절이 있는 자라 어린양이 어디로 인도하든지 따라가는 자며 사람 가운데서 구속을 받아 처음 익은 열매로 하나님과 어린양에게 속한 자들이니"}, {n:"5", t:"그 입에 거짓말이 없고 흠이 없는 자들이더라"}]},
-    { id: "7", title: "계 20:4~6", verses: [{n:"4", t:"또 내가 보좌들을 보니 거기 앉은 자들이 있어 심판하는 권세를 받았더라 또 내가 보니 예수의 증거와 하나님의 말씀을 인하여 목 베임을 받은 자의 영혼들과 또 짐승과 그의 우상에게 경배하지도 아니하고 이마와 손에 그의 표를 받지도 아니한 자들이 살아서 그리스도로 더불어 천 년 동안 왕 노릇 하니"}, {n:"5", t:"(그 나머지 죽은 자들은 그 천 년이 차기까지 살지 못하더라) 이는 첫째 부활이라"}, {n:"6", t:"이 첫째 부활에 참여하는 자들은 복이 있고 거룩하도다 둘째 사망이 그들을 다스리는 권세가 없고 도리어 그들이 하나님과 그리스도의 제사장이 되어 천 년 동안 그리스도로 더불어 왕 노릇 하리라"}]},
-    { id: "8", title: "계 21:1~4", verses: [{n:"1", t:"또 내가 새 하늘과 새 땅을 보니 처음 하늘과 처음 땅이 없어졌고 바다도 다시 있지 않더라"}, {n:"2", t:"또 내가 보매 거룩한 성 새 예루살렘이 하나님께로부터 하늘에서 내려오니 그 예비한 것이 신부가 남편을 위하여 단장한 것 같더라"}, {n:"3", t:"내가 들으니 보좌에서 큰 음성이 나서 가로되 보라 하나님의 장막이 사람들과 함께 있으매 하나님이 저희와 함께 거하시리니 저희는 하나님의 백성이 되고 하나님은 친히 저희와 함께 계셔서"}, {n:"4", t:"모든 눈물을 그 눈에서 씻기시매 다시 사망이 없고 애통하는 것이나 곡하는 것이나 아픈 것이 다시 있지 아니하리니 처음 것들이 다 지나갔음이러라"}]},
-    { id: "9", title: "계 22:1~2", verses: [{n:"1", t:"또 저가 수정같이 맑은 생명수의 강을 내게 보이니 하나님과 및 어린양의 보좌로부터 나서"}, {n:"2", t:"길 가운데로 흐르더라 강 좌우에 생명나무가 있어 열두 가지 실과를 맺히되 달마다 그 실과를 맺히고 그 나무 잎사귀들은 만국을 소성하기 위하여 있더라"}]},
-    { id: "10", title: "계 22:18~19", verses: [{n:"18", t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"}, {n:"19", t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}
+    { id: 1, title: "계 1:1~3", verses: [{n:"1", t:"예수 그리스도의 계시라 이는 하나님이 그에게 주사 반드시 속히 될 일을 그 종들에게 보이시려고 그 천사를 그 종 요한에게 보내어 지시하신 것이라"}, {n:"2", t:"요한은 하나님의 말씀과 예수 그리스도의 증거 곧 자기의 본 것을 다 증거하였느니라"}, {n:"3", t:"이 예언의 말씀을 읽는 자와 듣는 자들과 그 가운데 기록한 것을 지키는 자들이 복이 있나니 때가 가까움이라"}]},
+    { id: 2, title: "계 3:12", verses: [{n:"12", t:"이기는 자는 내 하나님 성전에 기둥이 되게 하리니 그가 결코 다시 나가지 아니하리라 내가 하나님의 이름과 하나님의 성 곧 하늘에서 내 하나님께로부터 내려오는 새 예루살렘의 이름과 나의 새 이름을 그이 위에 기록하리라"}]},
+    { id: 3, title: "계 7:1~4", verses: [{n:"1", t:"이 일 후에 내가 네 천사가 땅 네 모퉁이에 선 것을 보니 땅의 사방의 바람을 붙잡아 바람으로 하여금 땅에나 바다에나 각종 나무에 불지 못하게 하더라"}, {n:"2", t:"또 보매 다른 천사가 살아 계신 하나님의 인을 가지고 해 돋는 데로부터 올라와서 땅과 바다를 해롭게 할 권세를 얻은 네 천사를 향하여 큰 소리로 외쳐"}, {n:"3", t:"가로되 우리가 우리 하나님의 종들의 이마에 인치기까지 땅이나 바다나 나무나 해하지 말라 하더라"}, {n:"4", t:"내가 인 맞은 자의 수를 들으니 이스라엘 자손의 각 지파 중에서 인 맞은 자들이 십사만 사천이니"}]},
+    { id: 4, title: "계 10:10~11", verses: [{n:"10", t:"내가 천사의 손에서 작은 책을 갖다 먹어버리니 내 입에는 꿀같이 다나 먹은 후에 내 배에서는 쓰게 되더라"}, {n:"11", t:"저가 내게 말하기를 네가 많은 백성과 나라와 방언과 임금에게 다시 예언하여야 하리라 하더라"}]},
+    { id: 5, title: "계 11:15", verses: [{n:"15", t:"일곱째 천사가 나팔을 불매 하늘에 큰 음성들이 나서 가로되 세상 나라가 우리 주와 그 그리스도의 나라가 되어 그가 세세토록 왕 노릇 하시리로다 하니"}]},
+    { id: 6, title: "계 14:1~5", verses: [{n:"1", t:"또 내가 보니 보라 어린양이 시온산에 섰고 그와 함께 십사만 사천이 섰는데 그 이마에 어린양의 이름과 그 아버지의 이름을 쓴 것이 있도다"}, {n:"2", t:"내가 하늘에서 나는 소리를 들으니 많은 물소리도 같고 큰 뇌성도 같은데 내게 들리는 소리는 거문고 타는 자들의 그 거문고 타는 것 같더라"}, {n:"3", t:"저희가 보좌와 네 생물과 장로들 앞에서 새 노래를 부르니 땅에서 구속함을 얻은 십사만 사천인밖에는 능히 이 노래를 배울 자가 없더라"}, {n:"4", t:"이 사람들은 여자로 더불어 더럽히지 아니하고 정절이 있는 자라 어린양이 어디로 인도하든지 따라가는 자며 사람 가운데서 구속을 받아 처음 익은 열매로 하나님과 어린양에게 속한 자들이니"}, {n:"5", t:"그 입에 거짓말이 없고 흠이 없는 자들이더라"}]},
+    { id: 7, title: "계 20:4~6", verses: [{n:"4", t:"또 내가 보좌들을 보니 거기 앉은 자들이 있어 심판하는 권세를 받았더라 또 내가 보니 예수의 증거와 하나님의 말씀을 인하여 목 베임을 받은 자의 영혼들과 또 짐승과 그의 우상에게 경배하지도 아니하고 이마와 손에 그의 표를 받지도 아니한 자들이 살아서 그리스도로 더불어 천 년 동안 왕 노릇 하니"}, {n:"5", t:"(그 나머지 죽은 자들은 그 천 년이 차기까지 살지 못하더라) 이는 첫째 부활이라"}, {n:"6", t:"이 첫째 부활에 참여하는 자들은 복이 있고 거룩하도다 둘째 사망이 그들을 다스리는 권세가 없고 도리어 그들이 하나님과 그리스도의 제사장이 되어 천 년 동안 그리스도로 더불어 왕 노릇 하리라"}]},
+    { id: 8, title: "계 21:1~4", verses: [{n:"1", t:"또 내가 새 하늘과 새 땅을 보니 처음 하늘과 처음 땅이 없어졌고 바다도 다시 있지 않더라"}, {n:"2", t:"또 내가 보매 거룩한 성 새 예루살렘이 하나님께로부터 하늘에서 내려오니 그 예비한 것이 신부가 남편을 위하여 단장한 것 같더라"}, {n:"3", t:"내가 들으니 보좌에서 큰 음성이 나서 가로되 보라 하나님의 장막이 사람들과 함께 있으매 하나님이 저희와 함께 거하시리니 저희는 하나님의 백성이 되고 하나님은 친히 저희와 함께 계셔서"}, {n:"4", t:"모든 눈물을 그 눈에서 씻기시매 다시 사망이 없고 애통하는 것이나 곡하는 것이나 아픈 것이 다시 있지 아니하리니 처음 것들이 다 지나갔음이러라"}]},
+    { id: 9, title: "계 22:1~2", verses: [{n:"1", t:"또 저가 수정같이 맑은 생명수의 강을 내게 보이니 하나님과 및 어린양의 보좌로부터 나서"}, {n:"2", t:"길 가운데로 흐르더라 강 좌우에 생명나무가 있어 열두 가지 실과를 맺히되 달마다 그 실과를 맺히고 그 나무 잎사귀들은 만국을 소성하기 위하여 있더라"}]},
+    { id: 10, title: "계 22:18~19", verses: [{n:"18", t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"}, {n:"19", t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}
 ];
 
-let config = { isOpen: true, selectedIds: ["1","2","3","4","5","6","7","8","9","10"] };
+let config = { isOpen: true, selectedIds: [1,2,3,4,5,6,7,8,9,10] };
 let currentQuestions = [];
 let isPractice = false;
+let groupedAdminData = []; 
 const $ = id => document.getElementById(id);
 
-// 유사도 계산 (정확도 %)
 function getSim(s1, s2) {
-    const a = s1.replace(/[\s\.\,\?\!\'\"]/g, '');
-    const b = s2.replace(/[\s\.\,\?\!\'\"]/g, '');
+    const a = s1.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
+    const b = s2.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
     if (a === b) return 100;
     if (!a || !b) return 0;
     const m = Array(b.length + 1).fill().map(() => Array(a.length + 1).fill(0));
@@ -191,137 +252,267 @@ function getSim(s1, s2) {
     return Math.max(0, Math.round((1 - m[b.length][a.length] / Math.max(a.length, b.length)) * 100));
 }
 
-// 초기화
 window.onload = async () => {
-    const snap = await getDoc(doc(db, "settings", "examV3"));
+    const snap = await getDoc(doc(db, "settings", "examV5"));
     if (snap.exists()) config = snap.data();
     if (!config.isOpen) { $("btn-exam").classList.add("hidden"); $("msg-closed").classList.remove("hidden"); }
 };
 
-// 화면 전환
 function show(id) {
     ["screen-home", "screen-practice-setup", "screen-exam", "screen-result", "screen-admin-auth", "screen-admin"].forEach(s => $(s).classList.add("hidden"));
     $(id).classList.remove("hidden");
     window.scrollTo(0,0);
 }
 
-// 응시 전 체크
 window.checkStart = function(practice) {
-    const r = $("in-region").value, d = $("in-dept").value, s = $("in-dist").value, n = $("in-name").value;
-    // 관리자 모드 트리거: 전부 49 입력 시
+    const r = $("in-region").value, d = $("in-dept").value, s = $("in-role").value, n = $("in-name").value;
     if (r === "49" && d === "49" && s === "49" && n === "49") return show("screen-admin-auth");
-    
-    if (!practice && (!r || !d || !s || !n)) return alert("모든 정보를 입력해주세요.");
+    if (!practice && (!r || !d || !s || !n)) return alert("모든 인적사항을 입력해주세요.");
     isPractice = practice;
     startExam();
 };
 
 window.openPracticeSetup = () => {
     let h = '';
-    bibleData.forEach(c => h += `<label style="display:block;"><input type="checkbox" class="p-cb" value="${c.id}" checked> ${c.title}</label>`);
+    bibleData.forEach(c => h += `<label style="display:block; margin-bottom:5px;"><input type="checkbox" class="p-cb" value="${c.id}" checked> ${c.title}</label>`);
     $("practice-list").innerHTML = h;
     show("screen-practice-setup");
 };
 
+window.retakeExam = () => {
+    isPractice = false;
+    startExam();
+};
+
 function startExam() {
-    currentQuestions = [];
+    currentQuestions = []; 
     let source = [];
+    let isChunkMode = true;
+    let orderMode = isPractice ? $("practice-order").value : $("in-order").value;
+    
     if (isPractice) {
-        const ids = Array.from(document.querySelectorAll(".p-cb:checked")).map(cb => cb.value);
-        const type = $("practice-type").value;
+        const ids = Array.from(document.querySelectorAll(".p-cb:checked")).map(cb => parseInt(cb.value));
+        isChunkMode = ($("practice-type").value === 'chunk');
         bibleData.filter(c => ids.includes(c.id)).forEach(c => {
-            if (type === 'chunk') source.push(c);
-            else c.verses.forEach(v => source.push({ title: `${c.title.split(':')[0]} ${v.n}절`, verses: [v] }));
+            if (isChunkMode) source.push({ title: c.title, text: c.verses.map(v => v.t).join(" ") });
+            else c.verses.forEach(v => source.push({ title: `${c.title.split(':')[0]} ${v.n}절`, text: v.t }));
         });
     } else {
-        source = bibleData.filter(c => config.selectedIds.includes(c.id));
+        bibleData.filter(c => config.selectedIds.includes(c.id)).forEach(c => {
+            source.push({ title: c.title, text: c.verses.map(v => v.t).join(" ") });
+        });
     }
-    currentQuestions = source.sort(() => Math.random() - 0.5);
+
+    currentQuestions = (orderMode === 'random') ? source.sort(() => Math.random() - 0.5) : source;
     
     let h = '';
     currentQuestions.forEach((q, i) => {
-        h += `<div class="question-box"><div class="q-title">Q${i+1}. ${q.title}</div>`;
-        q.verses.forEach(v => h += `<div style="margin-bottom:10px;"><div style="font-size:13px; color:#666;">${v.n}절</div><textarea class="ans" data-qi="${i}" data-vn="${v.n}"></textarea></div>`);
-        h += `</div>`;
+        h += `<div class="question-box">
+                <div class="q-title">Q${i+1}. ${q.title}</div>
+                <textarea class="ans" data-qi="${i}" placeholder="이곳에 말씀을 작성하세요."></textarea>
+              </div>`;
     });
+    
     $("question-container").innerHTML = h;
-    $("exam-title").innerText = isPractice ? "연습모드 진행 중" : "본 시험 진행 중";
-    $("exam-info").innerText = `${$("in-region").value} ${$("in-name").value}`;
+    $("exam-title").innerText = isPractice ? "연습모드 응시 중" : "본 시험 응시 중";
+    $("exam-info").innerText = `${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
     show("screen-exam");
 }
 
 window.submitExam = async () => {
     if (!confirm("제출하시겠습니까?")) return;
-    let totalAcc = 0, totalVerses = 0, h = '';
-    const results = [];
+    
+    let totalAcc = 0;
+    let h = '';
+    let detailsForDB = [];
     
     currentQuestions.forEach((q, i) => {
-        h += `<div class="question-box"><div class="q-title">${q.title}</div>`;
-        q.verses.forEach(v => {
-            const user = Array.from(document.querySelectorAll(".ans")).find(t => t.dataset.qi == i && t.dataset.vn == v.n).value;
-            const acc = getSim(user, v.t);
-            totalAcc += acc; totalVerses++;
-            let bc = acc > 90 ? 'acc-high' : acc > 60 ? 'acc-mid' : 'acc-low';
-            h += `<div style="margin-bottom:10px; border-bottom:1px dashed #ddd; padding-bottom:10px;">
-                <div style="font-weight:bold;">${v.n}절 <span class="acc-badge ${bc}">정확도 ${acc}%</span></div>
-                <div style="color:#555; margin:5px 0;">${user || '(미입력)'}</div>
-                ${acc < 100 ? `<div style="color:var(--primary); font-size:13px;">정답: ${v.t}</div>` : ''}
+        const userText = document.querySelector(`.ans[data-qi="${i}"]`).value;
+        const acc = getSim(userText, q.text);
+        totalAcc += acc;
+        
+        let bc = acc > 90 ? 'acc-high' : acc > 60 ? 'acc-mid' : 'acc-low';
+        h += `<div class="question-box" style="margin-bottom:15px;">
+                <div class="q-title">${q.title} <span class="acc-badge ${bc}">정확도 ${acc}%</span></div>
+                <div style="font-size:14px; margin-bottom:8px;">
+                    <strong style="color:#555;">[나의 작성 답안]</strong><br>
+                    <div style="padding:10px; background:#f9f9f9; border:1px solid #eee; border-radius:5px; margin-top:5px; line-height:1.5;">${userText || '(미입력)'}</div>
+                </div>
+                ${acc < 100 ? `<div style="font-size:14px; margin-top:10px;">
+                    <strong style="color:var(--primary);">[실제 정답]</strong><br>
+                    <div style="padding:10px; background:#eff6ff; border:1px solid #bfdbfe; border-radius:5px; margin-top:5px; line-height:1.5;">${q.text}</div>
+                </div>` : ''}
             </div>`;
-            results.push({ v: v.n, acc });
-        });
-        h += `</div>`;
+        detailsForDB.push({ title: q.title, user: userText, correct: q.text, acc: acc });
     });
 
-    const avgAcc = Math.round(totalAcc / totalVerses);
-    const score = Math.round(avgAcc); // 점수를 정확도 평균으로 환산
-    $("res-score").innerText = `${score}점`;
+    const avgAcc = Math.round(totalAcc / currentQuestions.length);
+    $("res-score").innerText = `${avgAcc}점`;
     $("res-acc").innerText = `평균 정확도: ${avgAcc}%`;
-    $("res-user").innerText = `${$("in-region").value} ${$("in-name").value}`;
+    $("res-user").innerText = `${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
     $("result-details").innerHTML = h;
     
     if (!isPractice) {
-        await addDoc(collection(db, "examResultsV3"), {
-            region: $("in-region").value, dept: $("in-dept").value, dist: $("in-dist").value, name: $("in-name").value,
-            score, avgAcc, timestamp: new Date()
+        await addDoc(collection(db, "examResultsV5"), {
+            region: $("in-region").value, dept: $("in-dept").value, role: $("in-role").value, name: $("in-name").value,
+            score: avgAcc, avgAcc: avgAcc, details: detailsForDB, timestamp: new Date()
         });
     }
     show("screen-result");
 };
 
-// 관리자 기능
+// ----- 관리자 기능 -----
 window.adminLogin = async () => {
     try {
         const res = await signInWithPopup(auth, provider);
         if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
             loadAdminPanel();
             show("screen-admin");
-        } else { alert("권한 없음"); auth.signOut(); }
+        } else { alert("권한이 없습니다."); auth.signOut(); }
     } catch(e) { alert("로그인 실패"); }
 };
 
 async function loadAdminPanel() {
     $("set-isopen").value = config.isOpen.toString();
+    
     let h = '';
     bibleData.forEach(c => {
         let ck = config.selectedIds.includes(c.id) ? 'checked' : '';
-        h += `<label style="display:block;"><input type="checkbox" class="a-cb" value="${c.id}" ${ck}> ${c.title}</label>`;
+        h += `<label style="display:inline-block; margin-right:15px; margin-bottom:5px;"><input type="checkbox" class="a-cb" value="${c.id}" ${ck}> ${c.title}</label>`;
     });
     $("admin-chunk-list").innerHTML = h;
     
-    const snap = await getDocs(query(collection(db, "examResultsV3"), orderBy("timestamp", "desc")));
-    let th = '';
+    const snap = await getDocs(query(collection(db, "examResultsV5"), orderBy("timestamp", "asc")));
+    let userMap = {};
+    
     snap.forEach(d => {
-        const r = d.data();
-        th += `<tr><td>${r.name}</td><td>${r.score}</td><td>${r.avgAcc}%</td><td>${r.timestamp.toDate().toLocaleDateString()}</td></tr>`;
+        let r = d.data();
+        r.id = d.id;
+        let key = `${r.region}_${r.dept}_${r.role}_${r.name}`;
+        if (!userMap[key]) userMap[key] = { key, info: r, attempts: [] };
+        userMap[key].attempts.push(r);
     });
-    $("admin-res-table").querySelector("tbody").innerHTML = th;
+
+    groupedAdminData = Object.values(userMap).map(u => {
+        u.maxScore = Math.max(...u.attempts.map(a => a.score));
+        u.latestTime = Math.max(...u.attempts.map(a => a.timestamp ? a.timestamp.seconds : 0));
+        return u;
+    });
+    
+    window.renderAdminTable();
 }
+
+window.renderAdminTable = () => {
+    const sortType = $("admin-sort").value;
+    let data = [...groupedAdminData];
+    
+    if(sortType === 'scoreDesc') data.sort((a,b) => b.maxScore - a.maxScore);
+    else if(sortType === 'nameAsc') data.sort((a,b) => a.info.name.localeCompare(b.info.name));
+    else data.sort((a,b) => b.latestTime - a.latestTime);
+
+    let th = '';
+    data.forEach(u => {
+        let dStr = new Date(u.latestTime * 1000).toLocaleString();
+        let attemptTxt = u.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${u.attempts.length}회)</span>` : `<span style="color:#999;">X</span>`;
+        
+        th += `<tr>
+                <td style="text-align:left;">
+                    <div style="font-size:11px; color:#888;">${u.info.region} / ${u.info.dept} / ${u.info.role}</div>
+                    <strong>${u.info.name}</strong>
+                </td>
+                <td><strong style="color:var(--primary); font-size:16px;">${u.maxScore}점</strong></td>
+                <td>${attemptTxt}</td>
+                <td style="font-size:12px; color:#666;">${dStr}</td>
+                <td><button class="btn btn-sm btn-outline" onclick="showUserModal('${u.key}')">상세보기</button></td>
+              </tr>`;
+    });
+    const tbody = $("admin-res-table").querySelector("tbody");
+    if(th === '') th = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
+    tbody.innerHTML = th;
+};
+
+window.showUserModal = (key) => {
+    const u = groupedAdminData.find(d => d.key === key);
+    if(!u) return;
+    
+    $("modal-title").innerText = `[${u.info.name}] 님의 응시 내역 (최고점: ${u.maxScore}점)`;
+    
+    let btnHtml = '<div style="margin-bottom:15px; display:flex; gap:5px; flex-wrap:wrap;">';
+    u.attempts.forEach((a, idx) => {
+        let btnClass = (idx === u.attempts.length - 1) ? 'btn-primary' : 'btn-secondary'; 
+        btnHtml += `<button class="btn btn-sm ${btnClass}" style="margin:0;" onclick="renderAttemptDetail('${key}', ${idx})">${idx + 1}회차 (${a.score}점)</button>`;
+    });
+    btnHtml += '</div>';
+    
+    $("modal-body").innerHTML = btnHtml + `<div id="attempt-detail-container"></div>`;
+    $("modal-detail").classList.remove("hidden");
+    
+    window.renderAttemptDetail(key, u.attempts.length - 1); 
+};
+
+window.renderAttemptDetail = (key, idx) => {
+    const u = groupedAdminData.find(d => d.key === key);
+    const a = u.attempts[idx];
+    
+    let h = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;">
+                <strong style="font-size:16px;">${idx + 1}회차 답안 (점수: ${a.score}점)</strong>
+                <button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${key}', '${a.id}')">이 회차 삭제</button>
+             </div>`;
+             
+    if(!a.details || a.details.length === 0) {
+        h += '<p>상세 데이터가 없습니다.</p>';
+    } else {
+        a.details.forEach(q => {
+            let color = q.acc > 90 ? 'var(--success)' : q.acc > 60 ? '#f59e0b' : 'var(--error)';
+            h += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
+                    <strong style="color:var(--primary);">${q.title}</strong> 
+                    <span style="color:white; background:${color}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${q.acc}%</span>
+                    <div style="margin-top:8px; font-size:13px;">
+                        <div style="color:#666; font-weight:bold;">[제출 답안]</div>
+                        <div style="padding:8px; background:#f9f9f9; border-radius:4px; margin-bottom:5px;">${q.user || '(미입력)'}</div>
+                        <div style="color:var(--primary); font-weight:bold;">[정답]</div>
+                        <div style="padding:8px; background:#eff6ff; border-radius:4px;">${q.correct}</div>
+                    </div>
+                  </div>`;
+        });
+    }
+    $("attempt-detail-container").innerHTML = h;
+};
+
+window.deleteAttempt = async (key, docId) => {
+    if(!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?")) return;
+    try {
+        await deleteDoc(doc(db, "examResultsV5", docId));
+        alert("삭제되었습니다.");
+        $('modal-detail').classList.add('hidden');
+        loadAdminPanel(); 
+    } catch(e) { alert("삭제 실패"); }
+};
+
+window.downloadExcel = () => {
+    if(groupedAdminData.length === 0) return alert("다운로드할 데이터가 없습니다.");
+    
+    let csv = "\uFEFF"; 
+    csv += "지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
+    
+    groupedAdminData.forEach(u => {
+        let dStr = new Date(u.latestTime * 1000).toLocaleString();
+        let row = [u.info.region, u.info.dept, u.info.role, u.info.name, u.maxScore, u.attempts.length, dStr].map(v => `"${String(v).replace(/"/g, '""')}"`);
+        csv += row.join(",") + "\n";
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `사명자_실력점검_결과(재시험통합)_${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+};
 
 window.saveAdminSettings = async () => {
     const isOpen = $("set-isopen").value === "true";
-    const selectedIds = Array.from(document.querySelectorAll(".a-cb:checked")).map(cb => cb.value);
-    await setDoc(doc(db, "settings", "examV3"), { isOpen, selectedIds });
-    alert("저장되었습니다.");
+    const selectedIds = Array.from(document.querySelectorAll(".a-cb:checked")).map(cb => parseInt(cb.value));
+    await setDoc(doc(db, "settings", "examV5"), { isOpen, selectedIds });
+    alert("설정이 저장되었습니다.");
     location.reload();
 };
 </script>
