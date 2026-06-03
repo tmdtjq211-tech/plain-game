@@ -43,7 +43,7 @@ th{background:#f1f5f9;font-weight:700}
 .close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
 .diff-correct{color:var(--correct-blue);font-weight:700}
 .diff-error{color:var(--error);font-weight:700}
-.result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word}
+.result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word;white-space:pre-wrap;}
 .verse-label {font-size: 14px; font-weight: 700; color: var(--primary); display: inline-block; margin-top: 5px; margin-bottom: 2px;}
 </style>
 </head>
@@ -224,7 +224,7 @@ function calculateScore(userAns, correctAns) {
 }
 
 // =========================================================================
-// 🛠️ 최종 조율: 띄어쓰기는 완벽 무시하고 알맹이 대조하여 오타 부위만 표기
+// 💡 핵심 튜닝 파트: 정답의 띄어쓰기 뼈대를 추출하여 유저 글자 칸에 복원하는 로직
 // =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
@@ -233,26 +233,59 @@ function renderDiff(userAns, correctAns) {
 
     const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
     
-    // 띄어쓰기를 완전히 제거한 순수 글자 알맹이 상태를 만듭니다.
+    // 1. 유저와 정답에서 노이즈가 없는 순수 글자 알맹이만 남깁니다.
     let uClean = userAns.replace(cleanRegex, '');
     let cClean = correctAns.replace(cleanRegex, '');
 
-    // 공백이 없는 알맹이 문자열을 바탕으로 jsdiff에게 정밀 대조를 요청합니다.
+    // 2. 두 알맹이를 비교하여 '추가/삭제/유지' 맵을 확보합니다.
     let diffs = Diff.diffChars(cClean, uClean);
+    
+    // 3. 정답(correctAns) 본문의 띄어쓰기 위치 인덱스 지도를 만듭니다.
+    let spaceMap = [];
+    let cleanIdx = 0;
+    for (let i = 0; i < correctAns.length; i++) {
+        let char = correctAns[i];
+        if (/\s/.test(char)) {
+            spaceMap.push(cleanIdx); // 이 알맹이 글자 뒤에 공백이 있었다는 기록
+        } else if (!cleanRegex.test(char)) {
+            cleanIdx++;
+        }
+    }
+
+    // 4. 대조 결과 마크업을 생성하면서, 정답 지도에 맞춰 띄어쓰기를 강제로 끼워 넣습니다.
     let html = '';
+    let currentCleanIdx = 0; // 현재까지 출력된 알맹이 글자의 누적 수
 
     diffs.forEach(part => {
         let text = part.value; 
 
         if (part.added) {
-            // 정답과 다르게 밀렸거나 잘못 입력한 단어 부위 저격 하이라이트
-            html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700;" title="틀린 글자">${text}</span>`;
+            // 잘못 입력한 오타 글자 처리
+            for (let i = 0; i < text.length; i++) {
+                html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700;" title="틀린 글자">${text[i]}</span>`;
+                // 추가된 글자라도 정답의 특정 글자 수 타겟에 매칭되면 공백을 붙여 가독성 유지
+                if (spaceMap.includes(currentCleanIdx)) {
+                    html += ' ';
+                }
+            }
         } else if (part.removed) {
-            // 누락되어 빠트린 알맹이 글자만 주황색 취소선으로 노출
-            html += `<span class="diff-error" style="background-color:#fed7aa; color:#9a3412; text-decoration:line-through; font-weight:700;" title="빠진 글자: ${text}">${text}</span>`;
+            // 빠트린 정답 글자 처리 (취소선)
+            for (let i = 0; i < text.length; i++) {
+                html += `<span class="diff-error" style="background-color:#fed7aa; color:#9a3412; text-decoration:line-through; font-weight:700;" title="빠진 글자: ${text[i]}">${text[i]}</span>`;
+                currentCleanIdx++; // 정답 글자가 지나갔으므로 인덱스 증가
+                if (spaceMap.includes(currentCleanIdx)) {
+                    html += ' ';
+                }
+            }
         } else {
-            // 일치하는 글자는 정상 파란색 표시 (공백 없는 텍스트 형태로 조율)
-            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${text}</span>`;
+            // 일치하는 일반 정상 글자 처리
+            for (let i = 0; i < text.length; i++) {
+                html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${text[i]}</span>`;
+                currentCleanIdx++; // 정답 글자가 지나갔으므로 인덱스 증가
+                if (spaceMap.includes(currentCleanIdx)) {
+                    html += ' ';
+                }
+            }
         }
     });
     
