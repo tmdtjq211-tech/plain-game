@@ -179,9 +179,11 @@ th{background:#f1f5f9;font-weight:700}
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc }
+                             from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider }
+                             from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD90YkT77h64XOfz2U96G9S7Csd0OhEVvk",
@@ -196,8 +198,7 @@ const app      = initializeApp(firebaseConfig);
 const db       = getFirestore(app);
 const auth     = getAuth(app);
 const provider = new GoogleAuthProvider();
-
-const COL = "examResultsV5";
+const COL      = "examResultsV5";
 
 const bibleData = [
   {id:1,title:"계 1:1~3",verses:[{n:"1",t:"예수 그리스도의 계시라 이는 하나님이 그에게 주사 반드시 속히 될 일을 그 종들에게 보이시려고 그 천사를 그 종 요한에게 보내어 지시하신 것이라"},{n:"2",t:"요한은 하나님의 말씀과 예수 그리스도의 증거 곧 자기의 본 것을 다 증거하였느니라"},{n:"3",t:"이 예언의 말씀을 읽는 자와 듣는 자들과 그 가운데 기록한 것을 지키는 자들이 복이 있나니 때가 가까움이라"}]},
@@ -212,10 +213,11 @@ const bibleData = [
   {id:10,title:"계 22:18~19",verses:[{n:"18",t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"},{n:"19",t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}
 ];
 
-let examSettings = { isOpen:true, selectedIds:[1,2,3,4,5,6,7,8,9,10] };
-let currentQuestions = [];
-let isPracticeMode = false;
-let groupedAdminResults = [];
+let examSettings        = { isOpen:true, selectedIds:[1,2,3,4,5,6,7,8,9,10] };
+let currentQuestions    = [];
+let isPracticeMode      = false;
+// ★ Map으로 관리 → key로 항상 정확히 찾음, 인덱스 틀어짐 없음
+let adminGroupMap       = new Map();
 
 function el(id){ return document.getElementById(id); }
 
@@ -228,6 +230,10 @@ function toUnixSeconds(ts) {
   const p = Date.parse(ts); return isNaN(p) ? 0 : Math.floor(p/1000);
 }
 
+// key에 특수문자 있어도 안전하게 인코딩
+function encodeKey(key){ return encodeURIComponent(key); }
+function decodeKey(k)  { return decodeURIComponent(k); }
+
 function calculateScore(u, c) {
   const re = /[\s\.,\?!'"0-9\(\)\[\]\|~\-><:&]/g;
   const uc = u.replace(re,''), cc = c.replace(re,'');
@@ -238,15 +244,12 @@ function renderDiff(userAns, correctAns) {
   if (!userAns) return '<span style="color:#999;">(미입력)</span>';
   if (typeof Diff === 'undefined') return userAns;
   const re = /[\s\.,\?!'"0-9\(\)\[\]\|~\-><:&]/g;
-  const uClean = userAns.replace(re,'');
-  const cClean = correctAns.replace(re,'');
-  if (uClean === cClean) {
-    return '<span style="color:var(--correct-blue);font-weight:700;">' + userAns + '</span>';
-  }
-  return Diff.diffChars(cClean, uClean).map(p => {
-    if (p.added)   return '<span style="color:var(--error);text-decoration:underline;">' + p.value + '</span>';
-    if (p.removed) return '<span style="background:#fca5a5;color:#7f1d1d;text-decoration:line-through;">' + p.value + '</span>';
-    return '<span style="color:var(--correct-blue);font-weight:700;">' + p.value + '</span>';
+  const uC = userAns.replace(re,''), cC = correctAns.replace(re,'');
+  if (uC === cC) return '<span style="color:var(--correct-blue);font-weight:700;">'+userAns+'</span>';
+  return Diff.diffChars(cC, uC).map(p => {
+    if (p.added)   return '<span style="color:var(--error);text-decoration:underline;">'+p.value+'</span>';
+    if (p.removed) return '<span style="background:#fca5a5;color:#7f1d1d;text-decoration:line-through;">'+p.value+'</span>';
+    return '<span style="color:var(--correct-blue);font-weight:700;">'+p.value+'</span>';
   }).join('');
 }
 
@@ -297,6 +300,7 @@ function startExam() {
     ? Array.from(document.querySelectorAll(".p-cb:checked")).map(c=>parseInt(c.value))
     : examSettings.selectedIds;
   if (isPracticeMode && !ids.length) return alert("최소 하나 이상 선택해주세요.");
+
   let raw = bibleData.filter(b=>ids.includes(b.id)).map(b=>({id:b.id,title:b.title,verses:b.verses}));
   currentQuestions = order==='random' ? raw.sort(()=>Math.random()-.5) : raw;
 
@@ -314,8 +318,8 @@ function startExam() {
   });
 
   el("question-container").innerHTML = html;
-  el("exam-title").innerText  = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
-  el("exam-info").innerText   = el("in-region").value+' '+el("in-dept").value+' '+el("in-role").value+' '+el("in-name").value;
+  el("exam-title").innerText = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
+  el("exam-info").innerText  = el("in-region").value+' '+el("in-dept").value+' '+el("in-role").value+' '+el("in-name").value;
   showScreen("screen-exam");
 }
 
@@ -331,9 +335,12 @@ window.submitExam = async () => {
       const c = q.verses.map(v=>v.t).join(" ");
       const s = calculateScore(u,c);
       total += s;
-      detailsHtml += '<div class="question-box" style="margin-bottom:15px;"><div class="q-title">'+q.title+' <span class="acc-badge '+(s===100?'acc-high':'acc-low')+'">정확도 '+s+'%</span></div>'
-        +'<div style="font-size:14px;margin-bottom:10px;"><strong style="color:#555;">[나의 답안]</strong><div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">'+renderDiff(u,c)+'</div></div>'
-        +'<div style="font-size:14px;"><strong style="color:#10b981;">[정답]</strong><div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">'+c+'</div></div></div>';
+      detailsHtml += '<div class="question-box" style="margin-bottom:15px;">'
+        +'<div class="q-title">'+q.title+' <span class="acc-badge '+(s===100?'acc-high':'acc-low')+'">정확도 '+s+'%</span></div>'
+        +'<div style="font-size:14px;margin-bottom:10px;"><strong style="color:#555;">[나의 답안]</strong>'
+        +'<div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">'+renderDiff(u,c)+'</div></div>'
+        +'<div style="font-size:14px;"><strong style="color:#10b981;">[정답]</strong>'
+        +'<div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">'+c+'</div></div></div>';
       dbDetails.push({title:q.title, user:u, correct:c, acc:s});
     } else {
       let vS=[], vH='', uArr=[], cArr=[];
@@ -350,7 +357,8 @@ window.submitExam = async () => {
       });
       const qs = Math.round(vS.reduce((a,b)=>a+b,0)/vS.length);
       total += qs;
-      detailsHtml += '<div class="question-box" style="margin-bottom:15px;"><div class="q-title">'+q.title+' <span class="acc-badge '+(qs===100?'acc-high':'acc-low')+'">정확도 '+qs+'%</span></div>'+vH+'</div>';
+      detailsHtml += '<div class="question-box" style="margin-bottom:15px;">'
+        +'<div class="q-title">'+q.title+' <span class="acc-badge '+(qs===100?'acc-high':'acc-low')+'">정확도 '+qs+'%</span></div>'+vH+'</div>';
       dbDetails.push({title:q.title, user:uArr.join("  "), correct:cArr.join("  "), acc:qs});
     }
   });
@@ -378,7 +386,6 @@ window.adminLogin = async () => {
   try {
     const res = await signInWithPopup(auth, provider);
     if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
-      // 토큰 갱신 후 충분히 대기
       await res.user.getIdToken(true);
       await new Promise(r => setTimeout(r, 1500));
       showScreen("screen-admin");
@@ -396,7 +403,8 @@ async function loadAdminData() {
   el("set-isopen").value = String(examSettings.isOpen);
   el("admin-chunk-list").innerHTML = bibleData.map(b => {
     const chk = (examSettings.selectedIds||[]).includes(b.id) ? 'checked' : '';
-    return '<label style="display:inline-block;margin-right:15px;margin-bottom:5px;"><input type="checkbox" class="a-cb" value="'+b.id+'" '+chk+'> '+b.title+'</label>';
+    return '<label style="display:inline-block;margin-right:15px;margin-bottom:5px;">'
+      +'<input type="checkbox" class="a-cb" value="'+b.id+'" '+chk+'> '+b.title+'</label>';
   }).join('');
 
   el("admin-loading").innerText = "데이터 불러오는 중...";
@@ -406,7 +414,9 @@ async function loadAdminData() {
   try {
     const snap = await getDocs(collection(db, COL));
 
-    const groups = {};
+    // ★ 기존 Map 완전히 초기화 후 새로 구축
+    adminGroupMap.clear();
+
     snap.forEach(ds => {
       try {
         const d = Object.assign({}, ds.data(), { id: ds.id });
@@ -414,17 +424,23 @@ async function loadAdminData() {
         d.dept   = d.dept   || '';
         d.role   = d.role   || '';
         d.name   = d.name   || '(이름없음)';
-        d.score  = typeof d.score === 'number' ? d.score : (typeof d.avgAcc === 'number' ? d.avgAcc : 0);
-        const key = d.region+'__'+d.dept+'__'+d.role+'__'+d.name;
-        if (!groups[key]) groups[key] = { key:key, info:d, attempts:[] };
-        groups[key].attempts.push(d);
+        d.score  = typeof d.score === 'number' ? d.score
+                 : (typeof d.avgAcc === 'number' ? d.avgAcc : 0);
+
+        // ★ key = 지역+부서+직책+이름 조합 (고유 식별자)
+        const key = d.region+'||'+d.dept+'||'+d.role+'||'+d.name;
+
+        if (!adminGroupMap.has(key)) {
+          adminGroupMap.set(key, { key:key, info:d, attempts:[] });
+        }
+        adminGroupMap.get(key).attempts.push(d);
       } catch(e) { console.warn("파싱 오류:", ds.id, e); }
     });
 
-    groupedAdminResults = Object.values(groups).map(g => {
+    // maxScore / latestTime 계산
+    adminGroupMap.forEach(g => {
       g.maxScore   = Math.max.apply(null, g.attempts.map(a => a.score));
       g.latestTime = Math.max.apply(null, g.attempts.map(a => toUnixSeconds(a.timestamp)));
-      return g;
     });
 
     el("admin-loading").classList.add("hidden");
@@ -440,7 +456,8 @@ async function loadAdminData() {
 // ─── 테이블 렌더링 ────────────────────────────────────────────
 window.renderAdminTable = () => {
   const sort = el("admin-sort").value;
-  let list = groupedAdminResults.slice();
+  // Map → 배열 변환
+  let list = Array.from(adminGroupMap.values());
   if (sort==='scoreDesc') list.sort((a,b)=>b.maxScore-a.maxScore);
   else if (sort==='nameAsc') list.sort((a,b)=>a.info.name.localeCompare(b.info.name,'ko'));
   else list.sort((a,b)=>b.latestTime-a.latestTime);
@@ -450,41 +467,47 @@ window.renderAdminTable = () => {
     tbody.innerHTML = '<tr><td colspan="5">응시 기록이 없습니다.</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map((g,gi) => {
+  tbody.innerHTML = list.map(g => {
     const date   = g.latestTime > 0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '날짜없음';
     const retake = g.attempts.length > 1
       ? '<span style="color:var(--error);font-weight:bold;">O ('+g.attempts.length+'회)</span>'
       : '<span style="color:#999;">X</span>';
+    // ★ key를 URL인코딩해서 onclick에 안전하게 전달
+    const safeKey = encodeKey(g.key);
     return '<tr>'
       +'<td style="text-align:left;"><div style="font-size:11px;color:#888;">'+g.info.region+' / '+g.info.dept+' / '+g.info.role+'</div><strong>'+g.info.name+'</strong></td>'
       +'<td><strong style="color:var(--primary);font-size:16px;">'+g.maxScore+'점</strong></td>'
       +'<td>'+retake+'</td>'
       +'<td style="font-size:12px;color:#666;">'+date+'</td>'
-      +'<td><button class="btn btn-sm btn-outline" onclick="showUserModal('+gi+')">상세보기</button></td>'
+      +'<td><button class="btn btn-sm btn-outline" onclick="showUserModal(\''+safeKey+'\')">상세보기</button></td>'
       +'</tr>';
   }).join('');
 };
 
 // ─── 상세 모달 ────────────────────────────────────────────────
-window.showUserModal = (gi) => {
-  const group = groupedAdminResults[gi];
+window.showUserModal = (safeKey) => {
+  const key   = decodeKey(safeKey);
+  const group = adminGroupMap.get(key);
   if (!group) return;
+
   el("modal-title").innerText = '['+group.info.name+'] 님의 응시 내역 (최고: '+group.maxScore+'점)';
 
   let nav = '<div style="margin-bottom:15px;display:flex;gap:5px;flex-wrap:wrap;">';
   group.attempts.forEach((a,i) => {
-    nav += '<button class="btn btn-sm btn-secondary" style="margin:0;" onclick="renderAttemptDetail('+gi+','+i+')">'+(i+1)+'회차 ('+a.score+'점)</button>';
+    nav += '<button class="btn btn-sm btn-secondary" style="margin:0;" onclick="renderAttemptDetail(\''+safeKey+'\','+i+')">'+(i+1)+'회차 ('+a.score+'점)</button>';
   });
   nav += '</div>';
 
   el("modal-body").innerHTML = nav + '<div id="attempt-detail-container"></div>';
   el("modal-detail").classList.remove("hidden");
-  renderAttemptDetail(gi, group.attempts.length - 1);
+  renderAttemptDetail(safeKey, group.attempts.length - 1);
 };
 
-window.renderAttemptDetail = (gi, idx) => {
-  const group = groupedAdminResults[gi];
-  const att   = group.attempts[idx];
+window.renderAttemptDetail = (safeKey, idx) => {
+  const key   = decodeKey(safeKey);
+  const group = adminGroupMap.get(key);
+  if (!group) return;
+  const att = group.attempts[idx];
 
   let detailHtml = '';
   if (!att.details || att.details.length === 0) {
@@ -509,25 +532,27 @@ window.renderAttemptDetail = (gi, idx) => {
   el("attempt-detail-container").innerHTML =
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:#f1f5f9;padding:10px;border-radius:8px;">'
     +'<strong style="font-size:16px;">'+(idx+1)+'회차 (점수: '+att.score+'점)</strong>'
-    +'<button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('+gi+',\''+att.id+'\')">이 회차 삭제</button>'
+    +'<button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt(\''+safeKey+'\',\''+att.id+'\')">이 회차 삭제</button>'
     +'</div>'+detailHtml;
 };
 
-window.deleteAttempt = async (gi, docId) => {
-  if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?")) return;
+// ─── 회차 삭제 ────────────────────────────────────────────────
+window.deleteAttempt = async (safeKey, docId) => {
+  if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?\n삭제 후 복구할 수 없습니다.")) return;
   try {
     await deleteDoc(doc(db, COL, docId));
     alert("삭제되었습니다.");
     el("modal-detail").classList.add("hidden");
-    loadAdminData();
+    await loadAdminData(); // ★ 재로드해도 Map 기반이라 안전
   } catch(e) { alert("삭제 실패"); console.error(e); }
 };
 
 // ─── CSV 다운로드 ──────────────────────────────────────────────
 window.downloadExcel = () => {
-  if (!groupedAdminResults.length) return alert("다운로드할 데이터가 없습니다.");
+  const list = Array.from(adminGroupMap.values());
+  if (!list.length) return alert("다운로드할 데이터가 없습니다.");
   let csv = "\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
-  groupedAdminResults.forEach(g => {
+  list.forEach(g => {
     const date = g.latestTime > 0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '';
     csv += [g.info.region,g.info.dept,g.info.role,g.info.name,g.maxScore,g.attempts.length,date]
       .map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",") + "\n";
