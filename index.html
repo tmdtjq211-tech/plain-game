@@ -59,7 +59,7 @@ th{background:#f1f5f9;font-weight:700}
                 <label>출제 방식</label>
                 <select id="in-type">
                     <option value="chunk">덩어리 전체 쓰기</option>
-                    <option value="verse">한 절씩 나누어 쓰기</option>
+                    <option value="verse" selected>한 절씩 나누어 쓰기 (기본값)</option>
                 </select>
             </div>
             <div class="input-group" style="flex:1">
@@ -83,7 +83,7 @@ th{background:#f1f5f9;font-weight:700}
                 <label>출제 방식</label>
                 <select id="practice-type">
                     <option value="chunk">덩어리 전체 쓰기</option>
-                    <option value="verse">한 절씩 나누어 쓰기</option>
+                    <option value="verse" selected>한 절씩 나누어 쓰기</option>
                 </select>
             </div>
             <div class="input-group" style="flex:1">
@@ -184,15 +184,15 @@ const _0x14=[{id:1,title:"계 1:1~3",verses:[{n:"1",t:"예수 그리스도의 �
 let _0x15={isOpen:!0,selectedIds:[1,2,3,4,5,6,7,8,9,10]},_0x16=[],_0x17=!1,_0x18=[];
 window.$=_0x19=>document.getElementById(_0x19);
 
-// 토씨 하나라도 틀리면 0점 처리하도록 점수 계산 로직 변경
+// 토씨 하나라도 틀리면 0점 처리하도록 채점 로직 변경
 function _0x1a(_0x1b,_0x1c){
     let _0x1d=_0x1b.replace(/[\s\.\,\?\!\'\"0-9]/g,''),
         _0x1e=_0x1c.replace(/[\s\.\,\?\!\'\"0-9]/g,'');
-    if(_0x1d===_0x1e) return 100;
+    if(_0x1d===_0x1e) return 100; // 완벽 일치 시 100점
     return 0; // 토씨 하나라도 다르면 0점
 }
 
-// 빠트린 글자, 추가된 글자 빨간색 표시 로직 변경
+// 빠트린 글자, 추가된 글자 빨간색 표시 로직 변경 (JsDiff 활용)
 function _0x24(_0x25,_0x26){
     if(!_0x25)return'<span style="color:#999;">(미입력)</span>';
     if(typeof Diff==='undefined')return _0x25;
@@ -200,8 +200,8 @@ function _0x24(_0x25,_0x26){
     _0x27.forEach(_0x29=>{
         let _0x2a=_0x29.value.replace(/\n/g,'<br>');
         if(_0x29.added){
-            // 유저가 추가로 더 입력한 글자 (빨간색, 밑줄)
-            _0x28+=`<span class="diff-error" style="text-decoration:underline;" title="추가된 글자">${_0x2a}</span>`;
+            // 유저가 추가로 더 입력한 잘못된 글자 (빨간색, 밑줄)
+            _0x28+=`<span class="diff-error" style="text-decoration:underline;" title="추가된 잘못된 글자">${_0x2a}</span>`;
         } else if(_0x29.removed) {
             // 유저가 빠트린 글자 (빨간색 배경, 취소선)
             _0x28+=`<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through;" title="빠트린 글자">${_0x2a}</span>`;
@@ -245,22 +245,25 @@ window.openPracticeSetup=()=>{
 
 window.retakeExam=()=>{_0x34()};
 
-// 출제 준비 로직 (본 시험에서도 절 나누기 적용)
+// 출제 준비 로직 (본 시험에서도 출제 방식 적용 및 '절 나누기' 우선)
 function _0x34(){
     _0x16=[];
-    let _0x37=[],_0x38=!0,_0x39=_0x17?$("practice-order").value:$("in-order").value;
+    let _0x37=[],_0x38=_0x17?$("practice-type").value:$("in-type").value,_0x39=_0x17?$("practice-order").value:$("in-order").value;
+    
+    let _isChunk = _0x38 === 'chunk';
     
     if(_0x17){
+        // 연습모드
         let _0x3a=Array.from(document.querySelectorAll(".p-cb:checked")).map(_0x3b=>parseInt(_0x3b.value));
-        _0x38=$("practice-type").value==='chunk';
         _0x14.filter(_0x3c=>_0x3a.includes(_0x3c.id)).forEach(_0x3d=>{
-            _0x38?_0x37.push({title:_0x3d.title,text:_0x3d.verses.map(_0x3e=>_0x3e.t).join(" ")}):_0x3d.verses.forEach(_0x3f=>_0x37.push({title:`${_0x3d.title.split(':')[0]} ${_0x3f.n}절`,text:_0x3f.t}))
+            if(_isChunk) {
+                _0x37.push({title:_0x3d.title,text:_0x3d.verses.map(_0x3e=>_0x3e.t).join(" ")});
+            } else {
+                _0x3d.verses.forEach(_0x3f=>_0x37.push({title:`${_0x3d.title.split(':')[0]} ${_0x3f.n}절`,text:_0x3f.t}))
+            }
         })
     }else{
-        // 수정된 부분: 본 시험도 출제 방식(덩어리/한절씩) 적용
-        let _examType = $("in-type") ? $("in-type").value : 'chunk';
-        let _isChunk = _examType === 'chunk';
-
+        // 본 시험
         _0x14.filter(_0x40=>_0x15.selectedIds.includes(_0x40.id)).forEach(_0x41=>{
             if(_isChunk) {
                 _0x37.push({title:_0x41.title,text:_0x41.verses.map(_0x42=>_0x42.t).join(" ")});
@@ -290,7 +293,7 @@ window.submitExam=async()=>{
         let _0x4b=document.querySelector(`.ans[data-qi="${_0x4a}"]`).value.trim(),
             _0x4c=_0x1a(_0x4b,_0x49.text);
         _0x46+=_0x4c;
-        let _0x4d=_0x4c>90?'acc-high':_0x4c>60?'acc-mid':'acc-low',
+        let _0x4d=_0x4c===100?'acc-high':_0x4c>60?'acc-mid':'acc-low', // 100점일 때만 녹색
             _0x4e=_0x24(_0x4b,_0x49.text);
         _0x47+=`<div class="question-box" style="margin-bottom:15px;"><div class="q-title">${_0x49.title} <span class="acc-badge ${_0x4d}">정확도 ${_0x4c}%</span></div><div style="font-size:14px; margin-bottom:12px;"><strong style="color:#555;">[나의 작성 답안]</strong><br><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${_0x4e}</div></div><div style="font-size:14px;"><strong style="color:#10b981;">[총 정답]</strong><br><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${_0x49.text}</div></div></div>`;
         _0x48.push({title:_0x49.title,user:_0x4b,correct:_0x49.text,acc:_0x4c})
@@ -304,6 +307,7 @@ window.submitExam=async()=>{
     
     if(!_0x17){
         try{
+            // DB 저장 컬렉션 이름 유지: examResultsV5
             await _0x7(_0x6(_0x11,"examResultsV5"),{region:$("in-region").value,dept:$("in-dept").value,role:$("in-role").value,name:$("in-name").value,score:_0x4f,avgAcc:_0x4f,details:_0x48,timestamp:new Date()})
         }catch(e){
             console.error(e);
@@ -336,6 +340,8 @@ async function _0x51(){
         _0x53+=`<label style="display:inline-block; margin-right:15px; margin-bottom:5px;"><input type="checkbox" class="a-cb" value="${_0x54.id}" ${_0x55}> ${_0x54.title}</label>`
     });
     $("admin-chunk-list").innerHTML=_0x53;
+    
+    // DB 불러오기 컬렉션 이름 유지: examResultsV5
     let _0x56=await _0x8(_0x9(_0x6(_0x11,"examResultsV5"),_0xa("timestamp","asc"))),_0x57={};
     _0x56.forEach(_0x58=>{
         let _0x59=_0x58.data();
@@ -403,6 +409,7 @@ window.renderAttemptDetail=(_0x72,_0x73)=>{
 window.deleteAttempt=async(_0x7b,_0x7c)=>{
     if(!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?"))return;
     try{
+        // DB 삭제 컬렉션 이름 유지: examResultsV5
         await _0xb(_0x3(_0x11,"examResultsV5",_0x7c));
         alert("삭제되었습니다.");
         $('modal-detail').classList.add('hidden');
@@ -430,6 +437,8 @@ window.downloadExcel=()=>{
 window.saveAdminSettings=async()=>{
     let _0x85=$("set-isopen").value==="true",
         _0x86=Array.from(document.querySelectorAll(".a-cb:checked")).map(_0x87=>parseInt(_0x87.value));
+    
+    // 설정 저장 경로 유지: settings/examV5
     await _0x5(_0x3(_0x11,"settings","examV5"),{isOpen:_0x85,selectedIds:_0x86});
     alert("설정이 저장되었습니다.");
     location.reload()
