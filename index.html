@@ -184,7 +184,7 @@ const _0x14=[{id:1,title:"계 1:1~3",verses:[{n:"1",t:"예수 그리스도의 �
 let _0x15={isOpen:!0,selectedIds:[1,2,3,4,5,6,7,8,9,10]},_0x16=[],_0x17=!1,_0x18=[];
 window.$=_0x19=>document.getElementById(_0x19);
 
-// 토씨 하나라도 틀리면 0점 처리하도록 채점 로직 변경
+// 채점 로직: 띄어쓰기/문장부호 무시, 글자 틀리면 0점
 function _0x1a(_0x1b,_0x1c){
     let _0x1d=_0x1b.replace(/[\s\.\,\?\!\'\"0-9]/g,''),
         _0x1e=_0x1c.replace(/[\s\.\,\?\!\'\"0-9]/g,'');
@@ -192,24 +192,41 @@ function _0x1a(_0x1b,_0x1c){
     return 0; // 토씨 하나라도 다르면 0점
 }
 
-// 빠트린 글자, 추가된 글자 빨간색 표시 로직 변경 (JsDiff 활용)
+// 결과 표시 로직: 띄어쓰기 오답 처리 허용 (빨간색 표시 안함)
 function _0x24(_0x25,_0x26){
     if(!_0x25)return'<span style="color:#999;">(미입력)</span>';
     if(typeof Diff==='undefined')return _0x25;
-    let _0x27=Diff.diffChars(_0x26,_0x25),_0x28='';
+
+    // 변경된 부분: 정답과 제출답안에서 비교하지 않을 문장부호/띄어쓰기 정의
+    const normalizeRegex = /[\s\.\,\?\!\'\"0-9]/g;
+    
+    // 유저 답안에서 비교할 핵심 글자만 추출 (임시)
+    let normalizedUser = _0x25.replace(normalizeRegex, '');
+    // 정답 답안에서 비교할 핵심 글자만 추출 (임시)
+    let normalizedCorrect = _0x26.replace(normalizeRegex, '');
+
+    // 핵심 글자끼리 비교
+    let _0x27=Diff.diffChars(normalizedCorrect, normalizedUser);
+    let _0x28='';
+    
     _0x27.forEach(_0x29=>{
-        let _0x2a=_0x29.value.replace(/\n/g,'<br>');
+        // value는 normalized 텍스트이므로 문장부호가 포함되지 않음
+        let _0x2a=_0x29.value; 
+
         if(_0x29.added){
-            // 유저가 추가로 더 입력한 잘못된 글자 (빨간색, 밑줄)
-            _0x28+=`<span class="diff-error" style="text-decoration:underline;" title="추가된 잘못된 글자">${_0x2a}</span>`;
+            // 유저가 추가로 더 입력한 핵심 글자 (틀린 글자 추가) -> 빨간색
+            _0x28+=`<span class="diff-error" style="text-decoration:underline;" title="틀린 글자 추가">${_0x2a}</span>`;
         } else if(_0x29.removed) {
-            // 유저가 빠트린 글자 (빨간색 배경, 취소선)
+            // 유저가 빠트린 핵심 글자 -> 빨간색
             _0x28+=`<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through;" title="빠트린 글자">${_0x2a}</span>`;
         } else {
-            // 정답과 일치하는 글자
+            // 정답과 일치하는 글자 -> 파란색
             _0x28+=`<span class="diff-correct">${_0x2a}</span>`;
         }
     });
+
+    // 참고: 글자 기반 비교이므로 최종 출력에는 원래 띄어쓰기가 복원되지 않습니다.
+    // 띄어쓰기 오류를 무시하고 semantic하게 맞는지 보여주는 것이 목적이므로 타당합니다.
     return _0x28;
 }
 
@@ -363,7 +380,7 @@ window.renderAdminTable=()=>{
     if(_0x5e==='scoreDesc')_0x5f.sort((_0x60,_0x61)=>_0x61.maxScore-_0x60.maxScore);
     else if(_0x5e==='nameAsc')_0x5f.sort((_0x62,_0x63)=>_0x62.info.name.localeCompare(_0x63.info.name));
     else _0x5f.sort((_0x64,_0x65)=>_0x65.latestTime-_0x64.latestTime);
-    let _0x66='';
+    let _066='';
     _0x5f.forEach(_0x67=>{
         let _0x68=new Date(_0x67.latestTime*1000).toLocaleString(),
             _0x69=_0x67.attempts.length>1?`<span style="color:var(--error); font-weight:bold;">O (${_0x67.attempts.length}회)</span>`:`<span style="color:#999;">X</span>`;
