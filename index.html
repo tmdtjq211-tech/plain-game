@@ -182,7 +182,7 @@ th{background:#f1f5f9;font-weight:700}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD90YkT77h64XOfz2U96G9S7Csd0OhEVvk",
@@ -422,17 +422,21 @@ window.adminLogin = async () => {
   try {
     const res = await signInWithPopup(auth, provider);
     if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
-      // 토큰 완전히 반영될 때까지 대기
+      // auth 토큰 강제 갱신 후 Firestore에 반영될 때까지 onAuthStateChanged 로 확인
       await res.user.getIdToken(true);
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(resolve => {
+        const unsub = onAuthStateChanged(auth, user => {
+          if (user) { unsub(); resolve(); }
+        });
+      });
       showScreen("screen-admin");
-      loadAdminData();
+      await loadAdminData();
     } else {
       alert("권한이 없습니다.");
       auth.signOut();
       location.reload();
     }
-  } catch(e) { alert("로그인 실패"); console.error(e); }
+  } catch(e) { alert("로그인 실패: " + e.message); console.error(e); }
 };
 
 // ─── 관리자 데이터 로딩 ───────────────────────────────────────
@@ -449,9 +453,23 @@ async function loadAdminData() {
   el("admin-loading").classList.remove("hidden");
   el("admin-res-table").classList.add("hidden");
 
+  // auth 현재 유저 확인
+  const currentUser = auth.currentUser;
+  console.log("[Admin] currentUser:", currentUser ? currentUser.email : "없음");
+
   try {
+    // 토큰 재확인 후 읽기
+    if (currentUser) await currentUser.getIdToken(true);
     const snap = await getDocs(collection(db, COL));
     console.log(`[Admin] ${COL} → ${snap.size}개 문서 로드됨`);
+
+    if (snap.empty) {
+      console.warn("[Admin] snap.empty=true. 문서가 없거나 읽기 권한 없음. auth:", auth.currentUser?.email);
+      el("admin-loading").innerText = "⚠ 데이터 없음 (권한 문제일 수 있음 - 콘솔 확인)";
+      el("admin-res-table").classList.remove("hidden");
+      el("admin-res-table").querySelector("tbody").innerHTML = '<tr><td colspan="5" style="color:#ef4444;">응시 기록을 불러오지 못했습니다.<br>F12 콘솔에서 [Admin] 로그를 확인해주세요.</td></tr>';
+      return;
+    }
 
     const groups = {};
     snap.forEach(ds => {
