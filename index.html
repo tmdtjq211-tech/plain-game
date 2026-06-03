@@ -23,7 +23,7 @@ h3{margin-top:0}
 .input-group input,.input-group select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box}
 .question-box{background:#f8fafc;border:1px solid #e2e8f0;padding:20px;border-radius:10px;margin-bottom:20px}
 .q-title{font-weight:700;color:var(--primary);margin-bottom:15px;border-bottom:2px solid var(--secondary);padding-bottom:5px}
-textarea{width:100%;padding:15px;border:1px solid #ccc;border-radius:8px;min-height:150px;resize:vertical;box-sizing:border-box;font-size:15px;line-height:1.6}
+textarea{width:100%;padding:12px;border:1px solid #ccc;border-radius:8px;min-height:80px;resize:vertical;box-sizing:border-box;font-size:15px;line-height:1.6;margin-bottom:5px}
 textarea:focus{border-color:var(--primary);outline:0;box-shadow:0 0 0 3px rgba(30,58,138,.1)}
 .score-board{background:#fffbeb;padding:20px;border-radius:10px;text-align:center;border:2px solid var(--secondary);margin-bottom:20px}
 .score-num{font-size:36px;font-weight:700;color:var(--primary)}
@@ -42,6 +42,7 @@ th{background:#f1f5f9;font-weight:700}
 .diff-correct{color:var(--correct-blue);font-weight:700}
 .diff-error{color:var(--error);font-weight:700}
 .result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:keep-all}
+.verse-label {font-size: 14px; font-weight: 700; color: var(--primary); display: inline-block; margin-top: 5px; margin-bottom: 2px;}
 </style>
 </head>
 <body>
@@ -207,20 +208,20 @@ let groupedAdminResults = [];
 
 window.$ = (id) => document.getElementById(id);
 
-// 채점 로직: 띄어쓰기/문장부호 무시, 토씨 틀리면 0점
+// 채점 로직: 띄어쓰기 및 문장부호 무시, 글자 하나 틀리면 0점
 function calculateScore(userAns, correctAns) {
-    let u = userAns.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
-    let c = correctAns.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
+    let u = userAns.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
+    let c = correctAns.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
     if (u === c && u.length > 0) return 100;
     return 0;
 }
 
-// 오답 가독성 표시 로직: 띄어쓰기/문장부호 오류는 빨간색 처리 제외
+// 오답 가독성 표시 로직: 띄어쓰기/문장부호 오류는 오답 빨간색 처리 제외
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (typeof Diff === 'undefined') return userAns;
 
-    const cleanRegex = /[\s\.\,\?\!\'\"0-9]/g;
+    const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
     let uClean = userAns.replace(cleanRegex, '');
     let cClean = correctAns.replace(cleanRegex, '');
 
@@ -282,40 +283,45 @@ window.retakeExam = () => { startExam(); };
 function startExam() {
     currentQuestions = [];
     let rawQuestions = [];
-    let isChunkMode = true;
-    let order = 'sequential';
+    let isChunkMode = isPracticeMode ? ($("practice-type").value === 'chunk') : ($("in-type").value === 'chunk');
+    let order = isPracticeMode ? $("practice-order").value : $("in-order").value;
 
-    if (isPracticeMode) {
-        let selectedPracticeIds = Array.from(document.querySelectorAll(".p-cb:checked")).map(cb => parseInt(cb.value));
-        if (selectedPracticeIds.length === 0) return alert("최소 하나 이상의 성구를 선택해주세요.");
-        isChunkMode = $("practice-type").value === 'chunk';
-        order = $("practice-order").value;
+    let targetIds = isPracticeMode ? 
+        Array.from(document.querySelectorAll(".p-cb:checked")).map(cb => parseInt(cb.value)) : 
+        examSettings.selectedIds;
 
-        bibleData.filter(b => selectedPracticeIds.includes(b.id)).forEach(b => {
-            if (isChunkMode) {
-                rawQuestions.push({ title: b.title, text: b.verses.map(v => v.t).join(" ") });
-            } else {
-                b.verses.forEach(v => rawQuestions.push({ title: `${b.title.split(':')[0]} ${v.n}절`, text: v.t }));
-            }
+    if (isPracticeMode && targetIds.length === 0) return alert("최소 하나 이상의 성구를 선택해주세요.");
+
+    // 언제나 성구 덩어리 단위를 유지하여 리스트 생성
+    bibleData.filter(b => targetIds.includes(b.id)).forEach(b => {
+        rawQuestions.push({
+            id: b.id,
+            title: b.title,
+            verses: b.verses
         });
-    } else {
-        isChunkMode = $("in-type").value === 'chunk';
-        order = $("in-order").value;
-
-        bibleData.filter(b => examSettings.selectedIds.includes(b.id)).forEach(b => {
-            if (isChunkMode) {
-                rawQuestions.push({ title: b.title, text: b.verses.map(v => v.t).join(" ") });
-            } else {
-                b.verses.forEach(v => rawQuestions.push({ title: `${b.title.split(':')[0]} ${v.n}절`, text: v.t }));
-            }
-        });
-    }
+    });
 
     currentQuestions = order === 'random' ? rawQuestions.sort(() => Math.random() - 0.5) : rawQuestions;
 
     let qHtml = '';
     currentQuestions.forEach((q, idx) => {
-        qHtml += `<div class="question-box"><div class="q-title">Q${idx + 1}. ${q.title}</div><textarea class="ans" data-qi="${idx}" placeholder="이곳에 말씀을 작성하세요..."></textarea></div>`
+        // 문제 카드 상자는 무조건 '한 덩어리'로 생성
+        qHtml += `<div class="question-box">
+            <div class="q-title">Q${idx + 1}. ${q.title}</div>`;
+        
+        if (isChunkMode) {
+            // 덩어리 전체 쓰기 방식
+            qHtml += `<textarea class="ans chunk-ans" data-qi="${idx}" placeholder="이곳에 말씀 전체를 통으로 작성하세요..."></textarea>`;
+        } else {
+            // 한 절씩 나누어 쓰기 방식 (하나의 상자 안에서 절만 깔끔하게 입력창 분류)
+            q.verses.forEach((v, vIdx) => {
+                qHtml += `<div>
+                    <span class="verse-label">${v.n}절</span>
+                    <textarea class="ans verse-ans" data-qi="${idx}" data-vi="${vIdx}" placeholder="${v.n}절 말씀을 작성하세요..."></textarea>
+                </div>`;
+            });
+        }
+        qHtml += `</div>`;
     });
 
     $("question-container").innerHTML = qHtml;
@@ -330,17 +336,71 @@ window.submitExam = async () => {
     let totalScore = 0;
     let detailsHtml = '';
     let dbDetails = [];
+    let isChunkMode = isPracticeMode ? ($("practice-type").value === 'chunk') : ($("in-type").value === 'chunk');
 
     currentQuestions.forEach((q, idx) => {
-        let userAns = document.querySelector(`.ans[data-qi="${idx}"]`).value.trim();
-        let score = calculateScore(userAns, q.text);
-        totalScore += score;
+        if (isChunkMode) {
+            let userAns = document.querySelector(`.chunk-ans[data-qi="${idx}"]`).value.trim();
+            let correctText = q.verses.map(v => v.t).join(" ");
+            let score = calculateScore(userAns, correctText);
+            totalScore += score;
 
-        let badgeClass = score === 100 ? 'acc-high' : 'acc-low';
-        let diffHtml = renderDiff(userAns, q.text);
+            let badgeClass = score === 100 ? 'acc-high' : 'acc-low';
+            let diffHtml = renderDiff(userAns, correctText);
 
-        detailsHtml += `<div class="question-box" style="margin-bottom:15px;"><div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${score}%</span></div><div style="font-size:14px; margin-bottom:12px;"><strong style="color:#555;">[나의 작성 답안] (틀린 글자 표시)</strong><br><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div></div><div style="font-size:14px;"><strong style="color:#10b981;">[총 정답]</strong><br><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${q.text}</div></div></div>`;
-        dbDetails.push({ title: q.title, user: userAns, correct: q.text, acc: score });
+            detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
+                <div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${score}%</span></div>
+                <div style="font-size:14px; margin-bottom:12px;">
+                    <strong style="color:#555;">[나의 작성 답안] (틀린 글자 표시)</strong><br>
+                    <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div>
+                </div>
+                <div style="font-size:14px;">
+                    <strong style="color:#10b981;">[총 정답]</strong><br>
+                    <div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${correctText}</div>
+                </div>
+            </div>`;
+            dbDetails.push({ title: q.title, user: userAns, correct: correctText, acc: score });
+
+        } else {
+            // 한 상자 안에서 나누어 쓴 절별 데이터 개별 매핑 및 채점
+            let vScores = [];
+            let vDetailsHtml = '';
+            let combinedUserAns = [];
+            let combinedCorrectText = [];
+
+            q.verses.forEach((v, vIdx) => {
+                let userVerseAns = document.querySelector(`.verse-ans[data-qi="${idx}"][data-vi="${vIdx}"]`).value.trim();
+                let vScore = calculateScore(userVerseAns, v.t);
+                vScores.push(vScore);
+
+                let vDiffHtml = renderDiff(userVerseAns, v.t);
+                vDetailsHtml += `<div style="margin-top: 8px; padding: 10px; border-left: 3px solid var(--secondary); background: #f8fafc; margin-bottom: 8px;">
+                    <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${v.n}절 (${vScore === 100 ? '정답' : '오답'})</div>
+                    <div style="font-size:13px; margin-bottom:4px;"><strong style="color:#666;">[작성]</strong> ${vDiffHtml}</div>
+                    <div style="font-size:13px; color:#065f46;"><strong style="color:#10b981;">[정답]</strong> ${v.t}</div>
+                </div>`;
+
+                combinedUserAns.push(`(${v.n}절) ${userVerseAns}`);
+                combinedCorrectText.push(`(${v.n}절) ${v.t}`);
+            });
+
+            // 덩어리 카드 하나의 최종 점수는 포함된 절들의 평균값 (전부 맞아야 100점)
+            let qScore = Math.round(vScores.reduce((a, b) => a + b, 0) / vScores.length);
+            totalScore += qScore;
+            let badgeClass = qScore === 100 ? 'acc-high' : 'acc-low';
+
+            detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
+                <div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${qScore}%</span></div>
+                ${vDetailsHtml}
+            </div>`;
+
+            dbDetails.push({ 
+                title: q.title, 
+                user: combinedUserAns.join("  "), 
+                correct: combinedCorrectText.join("  "), 
+                acc: qScore 
+            });
+        }
     });
 
     let avgScore = Math.round(totalScore / currentQuestions.length);
@@ -392,7 +452,6 @@ async function loadAdminData() {
     });
     $("admin-chunk-list").innerHTML = chunkHtml;
 
-    // 인덱스 생성 에러를 원천 차단하기 위해 원본 컬렉션을 통째로 가져온 후 JS 단에서 매핑 및 정렬합니다.
     let snap = await getDocs(collection(db, "examResultsV5"));
     let groups = {};
 
@@ -418,7 +477,6 @@ async function loadAdminData() {
     renderAdminTable();
 }
 
-// 오타 변수명 완벽 수정 완료 파트
 window.renderAdminTable = () => {
     let sort = $("admin-sort").value;
     let list = [...groupedAdminResults];
@@ -427,7 +485,7 @@ window.renderAdminTable = () => {
     else if (sort === 'nameAsc') list.sort((a, b) => a.info.name.localeCompare(b.info.name));
     else list.sort((a, b) => b.latestTime - a.latestTime);
 
-    let tbodyHtml = ''; // 오타 나있던 명칭 변수 완전 수정
+    let tbodyHtml = '';
     list.forEach(g => {
         let dateStr = new Date(g.latestTime * 1000).toLocaleString();
         let retakeHtml = g.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${g.attempts.length}회)</span>` : `<span style="color:#999;">X</span>`;
