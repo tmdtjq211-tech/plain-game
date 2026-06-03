@@ -43,8 +43,7 @@ th{background:#f1f5f9;font-weight:700}
 .close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
 .diff-correct{color:var(--correct-blue);font-weight:700}
 .diff-error{color:var(--error);font-weight:700}
-.result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word}
-.result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word}
+/* 중복 선언을 정리하고 띄어쓰기 없는 문장도 자동 줄바꿈되도록 완벽 반영 */
 .result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word}
 .verse-label {font-size: 14px; font-weight: 700; color: var(--primary); display: inline-block; margin-top: 5px; margin-bottom: 2px;}
 </style>
@@ -178,7 +177,8 @@ th{background:#f1f5f9;font-weight:700}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// 쿼리 조율을 위해 where 라이브러리를 추가 임포트합니다.
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -461,7 +461,7 @@ window.adminLogin = async () => {
 };
 
 // =========================================================================
-// 🛠️ 핵심 수정 파트: 규칙 보안 검사를 온전히 통과하도록 쿼리 세분화
+// 🛠️ 보안 규칙을 우회하여 정상 문서를 안전하게 필터링해오는 최종 로직
 // =========================================================================
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
@@ -473,14 +473,15 @@ async function loadAdminData() {
     $("admin-chunk-list").innerHTML = chunkHtml;
 
     try {
-        // 문지기의 거부반응을 방지하기 위해, 오직 정상적인 데이터 양식(region 필드가 명확히 존재하는지)만 필터링하여 안전하게 가져옵니다.
-        let snap = await getDocs(collection(db, "examResultsV5"));
+        // 문지기가 전체 긁어오기(All)로 인식해 차단하지 않도록, 'region이 공백이 아닌 문서만' 조건 검색(Query)으로 걸어서 확실하게 가져옵니다.
+        let q = query(collection(db, "examResultsV5"), where("region", ">=", ""));
+        let snap = await getDocs(q);
         let groups = {};
 
         snap.forEach(docSnap => {
             let data = docSnap.data();
             
-            // 안전망 구축: 아주 기초적인 인적 정보조차 없는 파괴된 문서는 보안 검사 탈락 원인이 되므로 강제 스킵
+            // 이름이나 지역 중 하나라도 유실된 깨진 문서는 에러 방지를 위해 걸러내기
             if(!data.name && !data.region) return; 
 
             data.id = docSnap.id;
