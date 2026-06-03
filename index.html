@@ -182,7 +182,7 @@ th{background:#f1f5f9;font-weight:700}
 import { initializeApp }    from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc }
                              from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider }
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider }
                              from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -255,6 +255,32 @@ function renderDiff(userAns, correctAns) {
 
 // ─── 초기 로드 ────────────────────────────────────────────────
 window.onload = async () => {
+  // 모바일 redirect 로그인 결과 처리
+  if (sessionStorage.getItem("adminLoginPending") === "1") {
+    sessionStorage.removeItem("adminLoginPending");
+    try {
+      const result = await getRedirectResult(auth);
+      if (result && result.user) {
+        if (result.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
+          await result.user.getIdToken(true);
+          await new Promise(r => setTimeout(r, 1500));
+          // 설정 먼저 로드
+          try {
+            const snap = await getDoc(doc(db, "settings", "examV5"));
+            if (snap.exists()) examSettings = snap.data();
+          } catch(e) { console.error(e); }
+          showScreen("screen-admin");
+          await loadAdminData();
+          return;
+        } else {
+          alert("권한이 없습니다.");
+          auth.signOut();
+        }
+      }
+    } catch(e) { console.error("redirect 결과 처리 오류:", e); }
+  }
+
+  // 일반 초기 로드
   try {
     const snap = await getDoc(doc(db, "settings", "examV5"));
     if (snap.exists()) examSettings = snap.data();
@@ -383,19 +409,29 @@ window.submitExam = async () => {
 
 // ─── 관리자 로그인 ─────────────────────────────────────────────
 window.adminLogin = async () => {
-  try {
-    const res = await signInWithPopup(auth, provider);
-    if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
-      await res.user.getIdToken(true);
-      await new Promise(r => setTimeout(r, 1500));
-      showScreen("screen-admin");
-      await loadAdminData();
-    } else {
-      alert("권한이 없습니다.");
-      auth.signOut();
-      location.reload();
-    }
-  } catch(e) { alert("로그인 실패: "+e.message); console.error(e); }
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (isMobile) {
+    // 모바일: 팝업 대신 리다이렉트 방식
+    try {
+      sessionStorage.setItem("adminLoginPending", "1");
+      await signInWithRedirect(auth, provider);
+    } catch(e) { alert("로그인 실패: "+e.message); console.error(e); }
+  } else {
+    // PC: 팝업 방식
+    try {
+      const res = await signInWithPopup(auth, provider);
+      if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
+        await res.user.getIdToken(true);
+        await new Promise(r => setTimeout(r, 1500));
+        showScreen("screen-admin");
+        await loadAdminData();
+      } else {
+        alert("권한이 없습니다.");
+        auth.signOut();
+        location.reload();
+      }
+    } catch(e) { alert("로그인 실패: "+e.message); console.error(e); }
+  }
 };
 
 // ─── 관리자 데이터 로딩 ───────────────────────────────────────
