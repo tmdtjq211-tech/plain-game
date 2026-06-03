@@ -224,38 +224,37 @@ function calculateScore(userAns, correctAns) {
 }
 
 // =========================================================================
-// 🛠️ 1:1 글자 매칭 하이라이트 (띄어쓰기 완전 투명인간 취급 로직)
+// 🛠️ 최종 조율: 띄어쓰기는 완벽 무시하고 알맹이 대조하여 오타 부위만 표기
 // =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
+    if (typeof Diff === 'undefined') return userAns;
 
     const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
     
-    // 채점 기준과 완벽 매칭되도록 띄어쓰기와 문장부호를 제거한 순수 글자배열 추출
+    // 띄어쓰기를 완전히 제거한 순수 글자 알맹이 상태를 만듭니다.
     let uClean = userAns.replace(cleanRegex, '');
     let cClean = correctAns.replace(cleanRegex, '');
 
+    // 공백이 없는 알맹이 문자열을 바탕으로 jsdiff에게 정밀 대조를 요청합니다.
+    let diffs = Diff.diffChars(cClean, uClean);
     let html = '';
-    let maxLength = Math.max(uClean.length, cClean.length);
-    
-    for (let i = 0; i < maxLength; i++) {
-        let uChar = uClean[i] || ''; 
-        let cChar = cClean[i] || ''; 
 
-        if (uChar === cChar) {
-            // 글자가 맞으면 정상 파란색 출력
-            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${uChar}</span>`;
+    diffs.forEach(part => {
+        let text = part.value; 
+
+        if (part.added) {
+            // 정답과 다르게 밀렸거나 잘못 입력한 단어 부위 저격 하이라이트
+            html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700;" title="틀린 글자">${text}</span>`;
+        } else if (part.removed) {
+            // 누락되어 빠트린 알맹이 글자만 주황색 취소선으로 노출
+            html += `<span class="diff-error" style="background-color:#fed7aa; color:#9a3412; text-decoration:line-through; font-weight:700;" title="빠진 글자: ${text}">${text}</span>`;
         } else {
-            // 글자가 어긋난 정밀 부위만 저격해서 빨간색 하이라이트 처리
-            if (uChar) {
-                html += `<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; font-weight:700; text-decoration:underline;" title="정답: ${cChar}">${uChar}</span>`;
-            } else {
-                // 글자를 빼먹어 누락된 경우 오렌지색 취소선 출력
-                html += `<span class="diff-error" style="background-color:#fed7aa; color:#9a3412; text-decoration:line-through;" title="누락된 글자">${cChar}</span>`;
-            }
+            // 일치하는 글자는 정상 파란색 표시 (공백 없는 텍스트 형태로 조율)
+            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${text}</span>`;
         }
-    }
+    });
     
     return html;
 }
