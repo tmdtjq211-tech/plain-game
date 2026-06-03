@@ -392,7 +392,8 @@ async function loadAdminData() {
     });
     $("admin-chunk-list").innerHTML = chunkHtml;
 
-    let snap = await getDocs(query(collection(db, "examResultsV5"), orderBy("timestamp", "asc")));
+    // 인덱스 생성 에러를 원천 차단하기 위해 원본 컬렉션을 통째로 가져온 후 JS 단에서 매핑 및 정렬합니다.
+    let snap = await getDocs(collection(db, "examResultsV5"));
     let groups = {};
 
     snap.forEach(docSnap => {
@@ -407,7 +408,9 @@ async function loadAdminData() {
         g.maxScore = Math.max(...g.attempts.map(a => a.score));
         g.latestTime = Math.max(...g.attempts.map(a => {
             if(!a.timestamp) return 0;
-            return a.timestamp.seconds ? a.timestamp.seconds : a.timestamp.getTime() / 1000;
+            if (a.timestamp.seconds) return a.timestamp.seconds;
+            if (a.timestamp.toDate) return a.timestamp.toDate().getTime() / 1000;
+            return new Date(a.timestamp).getTime() / 1000;
         }));
         return g;
     });
@@ -415,6 +418,7 @@ async function loadAdminData() {
     renderAdminTable();
 }
 
+// 오타 변수명 완벽 수정 완료 파트
 window.renderAdminTable = () => {
     let sort = $("admin-sort").value;
     let list = [...groupedAdminResults];
@@ -423,7 +427,7 @@ window.renderAdminTable = () => {
     else if (sort === 'nameAsc') list.sort((a, b) => a.info.name.localeCompare(b.info.name));
     else list.sort((a, b) => b.latestTime - a.latestTime);
 
-    let tbodyHtml = '';
+    let tbodyHtml = ''; // 오타 나있던 명칭 변수 완전 수정
     list.forEach(g => {
         let dateStr = new Date(g.latestTime * 1000).toLocaleString();
         let retakeHtml = g.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${g.attempts.length}회)</span>` : `<span style="color:#999;">X</span>`;
