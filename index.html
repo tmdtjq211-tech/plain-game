@@ -255,7 +255,6 @@ function renderDiff(userAns, correctAns) {
 }
 
 window.onload = async () => {
-    // data.js 파일 로드 검증
     if (typeof window.BIBLE === 'undefined') {
         alert("성경 데이터(data.js)를 불러오지 못했습니다. 동일한 폴더에 파일이 있는지 확인해주세요.");
         return;
@@ -276,7 +275,10 @@ window.onload = async () => {
             $("btn-exam").classList.add("hidden");
             $("msg-closed").classList.remove("hidden");
         }
-    } catch (e) { console.error("설정 로딩 실패:", e); }
+    } catch (e) { 
+        console.error("설정 로딩 실패:", e);
+        alert("시험 설정을 불러오지 못했습니다. 파이어베이스 권한(보안규칙) 문제일 수 있습니다.\n에러: " + e.message);
+    }
 };
 
 function showScreen(screenId) {
@@ -438,20 +440,27 @@ window.submitExam = async () => {
                 details: dbDetails,
                 timestamp: new Date()
             });
+            alert("시험 결과가 성공적으로 서버에 저장되었습니다!");
         } catch (e) {
             console.error(e);
-            alert("DB 저장 중 오류가 발생했습니다. 권한이나 인터넷 상태를 확인해주세요.");
+            alert("DB 저장 실패! 파이어베이스 보안규칙 문제일 확률이 높습니다.\n에러 내용: " + e.message);
         }
     }
     showScreen("screen-result");
 };
 
+// =========================================================================
+// 보안 규칙 시차 문제 해결을 위해 데이터 로딩 구조 고도화
+// =========================================================================
 window.adminLogin = async () => {
     try {
         let res = await signInWithPopup(auth, provider);
         if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
-            loadAdminData();
-            showScreen("screen-admin");
+            // 구글 로그인 성공 얼럿을 제거하고 안전장치용 0.5초 딜레이를 주어 규칙 인증 시차를 해결합니다.
+            setTimeout(() => {
+                loadAdminData();
+                showScreen("screen-admin");
+            }, 500); 
         } else {
             alert("권한이 없습니다.");
             auth.signOut();
@@ -460,9 +469,6 @@ window.adminLogin = async () => {
     } catch (e) { alert("로그인 실패"); console.error(e); }
 };
 
-// =========================================================================
-// 방어적 코딩 적용: 예전 V5 데이터 강제 통합
-// =========================================================================
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
     let chunkHtml = '';
@@ -472,47 +478,48 @@ async function loadAdminData() {
     });
     $("admin-chunk-list").innerHTML = chunkHtml;
 
-    let snap = await getDocs(collection(db, "examResultsV5"));
-    let groups = {};
+    try {
+        let snap = await getDocs(collection(db, "examResultsV5"));
+        let groups = {};
 
-    snap.forEach(docSnap => {
-        let data = docSnap.data();
-        data.id = docSnap.id;
-        
-        // 예전 데이터 항목이 없을 때 기본값 세팅 (강제 통합용 방어코드)
-        let region = data.region || "미상";
-        let dept = data.dept || "미상";
-        let role = data.role || "미상";
-        let name = data.name || "미상";
-        
-        let key = `${region}_${dept}_${role}_${name}`;
-        
-        // 점수가 score도 없고 avgAcc도 없으면 0점
-        data.score = data.score !== undefined ? data.score : (data.avgAcc || 0);
+        snap.forEach(docSnap => {
+            let data = docSnap.data();
+            data.id = docSnap.id;
+            
+            let region = data.region || "미상";
+            let dept = data.dept || "미상";
+            let role = data.role || "미상";
+            let name = data.name || "미상";
+            
+            let key = `${region}_${dept}_${role}_${name}`;
+            data.score = data.score !== undefined ? data.score : (data.avgAcc || 0);
 
-        if (!groups[key]) groups[key] = { key: key, info: {region, dept, role, name}, attempts: [] };
-        groups[key].attempts.push(data);
-    });
-
-    groupedAdminResults = Object.values(groups).map(g => {
-        g.maxScore = Math.max(...g.attempts.map(a => a.score));
-        
-        // 타임스탬프 오류 방지 강제 변환
-        let times = g.attempts.map(a => {
-            if (!a.timestamp) return 0;
-            if (typeof a.timestamp === 'number') return a.timestamp;
-            if (a.timestamp.seconds) return a.timestamp.seconds;
-            if (a.timestamp.toDate) return a.timestamp.toDate().getTime() / 1000;
-            let parsed = new Date(a.timestamp).getTime() / 1000;
-            return isNaN(parsed) ? 0 : parsed;
+            if (!groups[key]) groups[key] = { key: key, info: {region, dept, role, name}, attempts: [] };
+            groups[key].attempts.push(data);
         });
-        g.latestTime = Math.max(...times);
-        if (g.latestTime === -Infinity || isNaN(g.latestTime)) g.latestTime = 0;
-        
-        return g;
-    });
 
-    renderAdminTable();
+        groupedAdminResults = Object.values(groups).map(g => {
+            g.maxScore = Math.max(...g.attempts.map(a => a.score));
+            
+            let times = g.attempts.map(a => {
+                if (!a.timestamp) return 0;
+                if (typeof a.timestamp === 'number') return a.timestamp;
+                if (a.timestamp.seconds) return a.timestamp.seconds;
+                if (a.timestamp.toDate) return a.timestamp.toDate().getTime() / 1000;
+                let parsed = new Date(a.timestamp).getTime() / 1000;
+                return isNaN(parsed) ? 0 : parsed;
+            });
+            g.latestTime = Math.max(...times);
+            if (g.latestTime === -Infinity || isNaN(g.latestTime)) g.latestTime = 0;
+            
+            return g;
+        });
+
+        renderAdminTable();
+    } catch (error) {
+        console.error("데이터 불러오기 에러:", error);
+        alert("파이어베이스에서 데이터를 불러올 권한이 없습니다!\n\n현재 로그인된 구글 계정이 규칙에 등록된 주소와 맞는지 확인하거나 잠시 후 다시 조회를 눌러주세요.\n에러 내용: " + error.message);
+    }
 }
 
 window.renderAdminTable = () => {
@@ -565,14 +572,12 @@ window.renderAttemptDetail = (key, attIdx) => {
         html += '<p>상세 데이터가 없습니다. (오래된 데이터 형식)</p>';
     } else {
         att.details.forEach(det => {
-            // 과거 데이터 방어 코드
             let uAns = det.user || '(기록 없음)';
             let cAns = det.correct || '(정답 데이터 없음)';
             let title = det.title || '문제';
             let acc = det.acc !== undefined ? det.acc : 0;
             let badgeColor = acc === 100 ? 'var(--success)' : 'var(--error)';
             
-            // 기존 분할 방식의 데이터인지 확인 후 렌더링
             if (uAns.includes("절) ")) {
                 html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안]</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${uAns}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cAns}</div></div></div>`
             } else {
@@ -591,7 +596,7 @@ window.deleteAttempt = async (key, docId) => {
         alert("삭제되었습니다.");
         $('modal-detail').classList.add('hidden');
         loadAdminData();
-    } catch (e) { alert("삭제 실패"); console.error(e); }
+    } catch (e) { alert("삭제 실패: " + e.message); console.error(e); }
 };
 
 window.downloadExcel = () => {
@@ -619,7 +624,7 @@ window.saveAdminSettings = async () => {
         await setDoc(doc(db, "settings", "examV5"), { isOpen, selectedIds });
         alert("설정이 저장되었습니다.");
         location.reload();
-    } catch (e) { alert("저장 실패"); console.error(e); }
+    } catch (e) { alert("저장 실패 권한문제일 수 있습니다: " + e.message); console.error(e); }
 };
 </script>
 </body>
