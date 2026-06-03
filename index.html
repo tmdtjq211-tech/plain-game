@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>실력 점검 시험 시스템</title>
+<!-- 문장 비교를 위한 라이브러리 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
 <style>
 :root{--primary:#1e3a8a;--secondary:#fbbf24;--bg-color:#f3f4f6;--card-bg:#ffffff;--text-main:#333333;--success:#10b981;--error:#ef4444;--correct-blue:#2563eb}
@@ -28,7 +29,6 @@ textarea:focus{border-color:var(--primary);outline:0;box-shadow:0 0 0 3px rgba(3
 .score-num{font-size:36px;font-weight:700;color:var(--primary)}
 .acc-badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px;font-weight:700;margin-left:10px;display:inline-block}
 .acc-high{background:var(--success)}
-.acc-mid{background:#f59e0b}
 .acc-low{background:var(--error)}
 .tree-view{border:1px solid #ddd;padding:15px;border-radius:8px;max-height:300px;overflow-y:auto;background:#fff}
 .hidden{display:none!important}
@@ -40,12 +40,13 @@ th{background:#f1f5f9;font-weight:700}
 .modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;position:relative}
 .close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
 .diff-correct{color:var(--correct-blue);font-weight:700}
-.diff-error{color:var(--error);font-weight:700;background-color:#fef2f2;border-radius:3px;padding:0 2px}
+.diff-error{color:var(--error);font-weight:700}
 .result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:keep-all}
 </style>
 </head>
 <body>
 <div class="container">
+    <!-- 화면 1: 메인 홈 (인적사항 입력) -->
     <div id="screen-home">
         <h2 style="background:var(--secondary);padding:10px;border-radius:8px">사명자 실력 점검 시험</h2>
         <div id="msg-closed" class="hidden" style="color:var(--error);text-align:center;margin:10px;font-weight:700">※ 현재 본 시험 기간이 아닙니다.</div>
@@ -59,7 +60,8 @@ th{background:#f1f5f9;font-weight:700}
                 <label>출제 방식</label>
                 <select id="in-type">
                     <option value="chunk">덩어리 전체 쓰기</option>
-                    <option value="verse" selected>한 절씩 나누어 쓰기 (기본값)</option>
+                    <!-- 절 나누어 쓰기를 기본값으로 설정 -->
+                    <option value="verse" selected>한 절씩 나누어 쓰기 (기본)</option>
                 </select>
             </div>
             <div class="input-group" style="flex:1">
@@ -75,6 +77,7 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn btn-outline" onclick="openPracticeSetup()">연습모드 (기록 안됨)</button>
     </div>
 
+    <!-- 화면 2: 연습모드 설정 -->
     <div id="screen-practice-setup" class="hidden">
         <h2>연습모드 설정</h2>
         <div class="input-group"><label>연습할 성구 선택</label><div class="tree-view" id="practice-list"></div></div>
@@ -98,6 +101,7 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn btn-secondary" onclick="location.reload()">취소 및 돌아가기</button>
     </div>
 
+    <!-- 화면 3: 시험 응시 중 -->
     <div id="screen-exam" class="hidden">
         <h2 id="exam-title">시험 응시</h2>
         <div id="exam-info" style="text-align:right;font-size:13px;color:#666;margin-bottom:10px;font-weight:700"></div>
@@ -105,6 +109,138 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn" onclick="submitExam()" style="background:var(--success);font-size:18px;margin-top:30px">답안 제출 및 채점하기</button>
     </div>
 
+    <!-- 화면 4: 채점 결과 -->
+    <div id="screen-result" class="hidden">
+        <h2>채점 결과</h2>
+        <div class="score-board">
+            <div id="res-user" style="color:#666;font-size:14px;margin-bottom:5px"></div>
+            <div class="score-num" id="res-score">0점</div>
+            <div id="res-acc" style="font-size:14px;margin-top:5px">평균 정확도: 0%데이터베이스 연결 정보를 포함하여, 날아가버린 응시목록 데이터 문제를 해결하고 관리 기능이 완전하게 작동하는 **전체 코드**입니다.
+
+이 코드에는 이전에 요청하신 모든 기능이 포함되어 있습니다.
+
+1.  **엄격한 채점**: 글자(토씨) 하나라도 틀리면 **0점** 처리. (단, 띄어쓰기, 문장부호는 무시)
+2.  **직관적인 결과 표시**: 틀린 답안 화면에서 **추가된 글자는 빨간색 밑줄**, **빠트린 글자는 빨간색 배경에 취소선**으로 표시.
+3.  **'절 나누어 쓰기' 우선**: 시험 응시 및 연습모드 모두 기본 출제 방식이 **'한 절씩 나누어 쓰기'**로 설정.
+4.  **완전한 관리자 시스템**: 응시자 데이터를 **`examResultsV5` 컬렉션**에서 정확히 불러오고, 최고 점수 및 재시험 횟수를 통합 관리하며, 엑셀 다운로드 및 특정 회차 삭제 기능 포함.
+
+사용법: 아래 코드를 모두 복사하여 HTML 파일(예: `exam.html`)로 저장한 후 웹 브라우저에서 실행하세요.
+
+---
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>실력 점검 시험 시스템</title>
+<!-- 문장 비교를 위한 jsdiff 라이브러리 -->
+<script src="[https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js](https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js)"></script>
+<style>
+:root{--primary:#1e3a8a;--secondary:#fbbf24;--bg-color:#f3f4f6;--card-bg:#ffffff;--text-main:#333333;--success:#10b981;--error:#ef4444;--correct-blue:#2563eb}
+body{font-family:'Malgun Gothic',sans-serif;background-color:var(--bg-color);margin:0;padding:20px 10px;display:flex;justify-content:center;min-height:100vh}
+.container{background:var(--card-bg);width:100%;max-width:800px;padding:30px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.05);border-top:8px solid var(--primary);position:relative}
+h2,h3{color:var(--primary);text-align:center}
+h3{margin-top:0}
+.btn{width:100%;padding:14px;background-color:var(--primary);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;transition:.2s;margin-top:10px}
+.btn:hover{background-color:#1e40af}
+.btn.btn-outline{background:0 0;color:var(--primary);border:2px solid var(--primary)}
+.btn.btn-secondary{background:#6b7280}
+.btn.btn-danger{background:var(--error)}
+.btn-sm{width:auto;padding:6px 12px;font-size:12px;margin-top:0}
+.input-group{margin-bottom:15px}
+.input-group label{display:block;margin-bottom:5px;font-weight:700;color:var(--primary)}
+.input-group input,.input-group select{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:8px;box-sizing:border-box}
+.question-box{background:#f8fafc;border:1px solid #e2e8f0;padding:20px;border-radius:10px;margin-bottom:20px}
+.q-title{font-weight:700;color:var(--primary);margin-bottom:15px;border-bottom:2px solid var(--secondary);padding-bottom:5px}
+textarea{width:100%;padding:15px;border:1px solid #ccc;border-radius:8px;min-height:150px;resize:vertical;box-sizing:border-box;font-size:15px;line-height:1.6}
+textarea:focus{border-color:var(--primary);outline:0;box-shadow:0 0 0 3px rgba(30,58,138,.1)}
+.score-board{background:#fffbeb;padding:20px;border-radius:10px;text-align:center;border:2px solid var(--secondary);margin-bottom:20px}
+.score-num{font-size:36px;font-weight:700;color:var(--primary)}
+.acc-badge{padding:3px 8px;border-radius:4px;color:#fff;font-size:12px;font-weight:700;margin-left:10px;display:inline-block}
+.acc-high{background:var(--success)}
+.acc-low{background:var(--error)}
+.tree-view{border:1px solid #ddd;padding:15px;border-radius:8px;max-height:300px;overflow-y:auto;background:#fff}
+.hidden{display:none!important}
+table{width:100%;border-collapse:collapse;margin-top:15px;font-size:13px}
+td,th{border:1px solid #ddd;padding:10px;text-align:center;word-break:keep-all}
+th{background:#f1f5f9;font-weight:700}
+.admin-tools{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:#f9fafb;padding:10px;border-radius:8px;border:1px solid #eee}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);display:flex;justify-content:center;align-items:center;z-index:1000;padding:20px;box-sizing:border-box}
+.modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;position:relative}
+.close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
+.diff-correct{color:var(--correct-blue);font-weight:700}
+.diff-error{color:var(--error);font-weight:700}
+.result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:keep-all}
+</style>
+</head>
+<body>
+<div class="container">
+    <!-- 화면: 홈/로그인 -->
+    <div id="screen-home">
+        <h2 style="background:var(--secondary);padding:10px;border-radius:8px">사명자 실력 점검 시험</h2>
+        <div id="msg-closed" class="hidden" style="color:var(--error);text-align:center;margin:10px;font-weight:700">※ 현재 본 시험 기간이 아닙니다.</div>
+        <div class="input-group"><label>지역</label><input type="text" id="in-region" placeholder="예: 2지역"></div>
+        <div class="input-group"><label>부서/과</label><input type="text" id="in-dept" placeholder="예: 청년회"></div>
+        <div class="input-group"><label>직책</label><input type="text" id="in-role" placeholder="예: 구역장"></div>
+        <div class="input-group"><label>성함</label><input type="text" id="in-name" placeholder="예: 홍길동"></div>
+        
+        <div style="display:flex;gap:10px">
+            <div class="input-group" style="flex:1">
+                <label>출제 방식</label>
+                <select id="in-type">
+                    <option value="chunk">덩어리 전체 쓰기</option>
+                    <!-- 절 나누어 쓰기를 기본값으로 설정 -->
+                    <option value="verse" selected>한 절씩 나누어 쓰기 (기본)</option>
+                </select>
+            </div>
+            <div class="input-group" style="flex:1">
+                <label>문제 출제 순서</label>
+                <select id="in-order">
+                    <option value="random">랜덤 섞기</option>
+                    <option value="sequential">말씀 순서대로</option>
+                </select>
+            </div>
+        </div>
+        
+        <button class="btn" id="btn-exam" onclick="checkStart(false)">응시하기 (기록 저장됨)</button> 
+        <button class="btn btn-outline" onclick="openPracticeSetup()">연습모드 (기록 안됨)</button>
+    </div>
+
+    <!-- 화면: 연습모드 설정 -->
+    <div id="screen-practice-setup" class="hidden">
+        <h2>연습모드 설정</h2>
+        <div class="input-group"><label>연습할 성구 선택</label><div class="tree-view" id="practice-list"></div></div>
+        <div style="display:flex;gap:10px">
+            <div class="input-group" style="flex:1">
+                <label>출제 방식</label>
+                <select id="practice-type">
+                    <option value="chunk">덩어리 전체 쓰기</option>
+                    <option value="verse" selected>한 절씩 나누어 쓰기</option>
+                </select>
+            </div>
+            <div class="input-group" style="flex:1">
+                <label>출제 순서</label>
+                <select id="practice-order">
+                    <option value="random">랜덤 섞기</option>
+                    <option value="sequential">말씀 순서대로</option>
+                </select>
+            </div>
+        </div>
+        <button class="btn" onclick="checkStart(true)">연습 시작</button> 
+        <button class="btn btn-secondary" onclick="location.reload()">취소 및 돌아가기</button>
+    </div>
+
+    <!-- 화면: 시험 중 -->
+    <div id="screen-exam" class="hidden">
+        <h2 id="exam-title">시험 응시</h2>
+        <div id="exam-info" style="text-align:right;font-size:13px;color:#666;margin-bottom:10px;font-weight:700"></div>
+        <div id="question-container"></div>
+        <button class="btn" onclick="submitExam()" style="background:var(--success);font-size:18px;margin-top:30px">답안 제출 및 채점하기</button>
+    </div>
+
+    <!-- 화면: 결과 -->
     <div id="screen-result" class="hidden">
         <h2>채점 결과</h2>
         <div class="score-board">
@@ -119,6 +255,7 @@ th{background:#f1f5f9;font-weight:700}
         </div>
     </div>
 
+    <!-- 화면: 관리자 로그인 -->
     <div id="screen-admin-auth" class="hidden" style="text-align:center;padding:40px 0">
         <h2>관리자 인증</h2>
         <p style="color:#666">보안을 위해 관리자 구글 계정으로 로그인해주세요.</p>
@@ -126,6 +263,7 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn btn-secondary" onclick="location.reload()" style="width:auto">취소</button>
     </div>
 
+    <!-- 화면: 관리자 패널 -->
     <div id="screen-admin" class="hidden">
         <h2>관리자 시스템</h2>
         <div class="input-group" style="background:#f9fafb;padding:15px;border-radius:8px;border:1px solid #ddd">
@@ -163,6 +301,7 @@ th{background:#f1f5f9;font-weight:700}
     </div>
 </div>
 
+<!-- 상세 모달 -->
 <div id="modal-detail" class="modal-overlay hidden">
     <div class="modal-content">
         <button class="close-modal" onclick="$('modal-detail').classList.add('hidden')">&times;</button>
@@ -173,292 +312,388 @@ th{background:#f1f5f9;font-weight:700}
 </div>
 
 <script type="module">
-import{initializeApp as _0x1}from"https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import{getFirestore as _0x2,doc as _0x3,getDoc as _0x4,setDoc as _0x5,collection as _0x6,addDoc as _0x7,getDocs as _0x8,query as _0x9,orderBy as _0xa,deleteDoc as _0xb}from"https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import{getAuth as _0xc,signInWithPopup as _0xd,GoogleAuthProvider as _0xe}from"https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+// 파이어베이스 라이브러리 임포트
+import { initializeApp } from "[https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js](https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js)";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, deleteDoc } from "[https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js](https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js)";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "[https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js](https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js)";
 
-const _0xf={apiKey:"AIzaSyD90YkT77h64XOfz2U96G9S7Csd0OhEVvk",authDomain:"cheongosi.firebaseapp.com",projectId:"cheongosi",storageBucket:"cheongosi.firebasestorage.app",messagingSenderId:"73793345931",appId:"1:73793345931:web:1944def28525c24bc2b78e"},
-_0x10=_0x1(_0xf),_0x11=_0x2(_0x10),_0x12=_0xc(_0x10),_0x13=new _0xe;
+// 파이어베이스 설정
+const firebaseConfig = {
+    apiKey: "AIzaSyD90YkT77h64XOfz2U96G9S7Csd0OhEVvk",
+    authDomain: "cheongosi.firebaseapp.com",
+    projectId: "cheongosi",
+    storageBucket: "cheongosi.firebasestorage.app",
+    messagingSenderId: "73793345931",
+    appId: "1:73793345931:web:1944def28525c24bc2b78e"
+};
 
-const _0x14=[{id:1,title:"계 1:1~3",verses:[{n:"1",t:"예수 그리스도의 계시라 이는 하나님이 그에게 주사 반드시 속히 될 일을 그 종들에게 보이시려고 그 천사를 그 종 요한에게 보내어 지시하신 것이라"},{n:"2",t:"요한은 하나님의 말씀과 예수 그리스도의 증거 곧 자기의 본 것을 다 증거하였느니라"},{n:"3",t:"이 예언의 말씀을 읽는 자와 듣는 자들과 그 가운데 기록한 것을 지키는 자들이 복이 있나니 때가 가까움이라"}]},{id:2,title:"계 3:12",verses:[{n:"12",t:"이기는 자는 내 하나님 성전에 기둥이 되게 하리니 그가 결코 다시 나가지 아니하리라 내가 하나님의 이름과 하나님의 성 곧 하늘에서 내 하나님께로부터 내려오는 새 예루살렘의 이름과 나의 새 이름을 그이 위에 기록하리라"}]},{id:3,title:"계 7:1~4",verses:[{n:"1",t:"이 일 후에 내가 네 천사가 땅 네 모퉁이에 선 것을 보니 땅의 사방의 바람을 붙잡아 바람으로 하여금 땅에나 바다에나 각종 나무에 불지 못하게 하더라"},{n:"2",t:"또 보매 다른 천사가 살아 계신 하나님의 인을 가지고 해 돋는 데로부터 올라와서 땅과 바다를 해롭게 할 권세를 얻은 네 천사를 향하여 큰 소리로 외쳐"},{n:"3",t:"가로되 우리가 우리 하나님의 종들의 이마에 인치기까지 땅이나 바다나 나무나 해하지 말라 하더라"},{n:"4",t:"내가 인 맞은 자의 수를 들으니 이스라엘 자손의 각 지파 중에서 인 맞은 자들이 십사만 사천이니"}]},{id:4,title:"계 10:10~11",verses:[{n:"10",t:"내가 천사의 손에서 작은 책을 갖다 먹어버리니 내 입에는 꿀같이 다나 먹은 후에 내 배에서는 쓰게 되더라"},{n:"11",t:"저가 내게 말하기를 네가 많은 백성과 나라와 방언과 임금에게 다시 예언하여야 하리라 하더라"}]},{id:5,title:"계 11:15",verses:[{n:"15",t:"일곱째 천사가 나팔을 불매 하늘에 큰 음성들이 나서 가로되 세상 나라가 우리 주와 그 그리스도의 나라가 되어 그가 세세토록 왕 노릇 하시리로다 하니"}]},{id:6,title:"계 14:1~5",verses:[{n:"1",t:"또 내가 보니 보라 어린 양이 시온 산에 섰고 그와 함께 십사만 사천이 섰는데 그 이마에 어린양의 이름과 그 아버지의 이름을 쓴 것이 있도다"},{n:"2",t:"내가 하늘에서 나는 소리를 들으니 많은 물소리도 같고 큰 뇌성도 같은데 내게 들리는 소리는 거문고 타는 자들의 그 거문고 타는 것 같더라"},{n:"3",t:"저희가 보좌와 네 생물과 장로들 앞에서 새 노래를 부르니 땅에서 구속함을 얻은 십사만 사천 인 밖에는 능히 이 노래를 배울 자가 없더라"},{n:"4",t:"이 사람들은 여자로 더불어 더럽히지 아니하고 정절이 있는 자라 어린양이 어디로 인도하든지 따라가는 자며 사람 가운데서 구속을 받아 처음 익은 열매로 하나님과 어린양에게 속한 자들이니"},{n:"5",t:"그 입에 거짓말이 없고 흠이 없는 자들이더라"}]},{id:7,title:"계 20:4~6",verses:[{n:"4",t:"또 내가 보좌들을 보니 거기 앉은 자들이 있어 심판하는 권세를 받았더라 또 내가 보니 예수의 증거와 하나님의 말씀을 인하여 목 베임을 받은 자의 영혼들과 또 짐승과 그의 우상에게 경배하지도 아니하고 이마와 손에 그의 표를 받지도 아니한 자들이 살아서 그리스도로 더불어 천 년 동안 왕 노릇 하니"},{n:"5",t:"(그 나머지 죽은 자들은 그 천 년이 차기까지 살지 못하더라) 이는 첫째 부활이라"},{n:"6",t:"이 첫째 부활에 참예하는 자들은 복이 있고 거룩하도다 둘째 사망이 그들을 다스리는 권세가 없고 도리어 그들이 하나님과 그리스도의 제사장이 되어 천 년 동안 그리스도로 더불어 왕 노릇 하리라"}]},{id:8,title:"계 21:1~4",verses:[{n:"1",t:"또 내가 새 하늘과 새 땅을 보니 처음 하늘과 처음 땅이 없어졌고 바다도 다시 있지 않더라"},{n:"2",t:"또 내가 보매 거룩한 성 새 예루살렘이 하나님께로부터 하늘에서 내려오니 그 예비한 것이 신부가 남편을 위하여 단장한 것 같더라"},{n:"3",t:"내가 들으니 보좌에서 큰 음성이 나서 가로되 보라 하나님의 장막이 사람들과 함께 있으매 하나님이 저희와 함께 거하시리니 저희는 하나님의 백성이 되고 하나님은 친히 저희와 함께 계셔서"},{n:"4",t:"모든 눈물을 그 눈에서 씻기시매 다시 사망이 없고 애통하는 것이나 곡하는 것이나 아픈 것이 다시 있지 아니하리니 처음 것들이 다 지나갔음이러라"}]},{id:9,title:"계 22:1~2",verses:[{n:"1",t:"또 저가 수정같이 맑은 생명수의 강을 내게 보이니 하나님과 및 어린양의 보좌로부터 나서"},{n:"2",t:"길 가운데로 흐르더라 강 좌우에 생명나무가 있어 열두 가지 실과를 맺히되 달마다 그 실과를 맺히고 그 나무 잎사귀들은 만국을 소성하기 위하여 있더라"}]},{id:10,title:"계 22:18~19",verses:[{n:"18",t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"},{n:"19",t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}];
-let _0x15={isOpen:!0,selectedIds:[1,2,3,4,5,6,7,8,9,10]},_0x16=[],_0x17=!1,_0x18=[];
-window.$=_0x19=>document.getElementById(_0x19);
+// 파이어베이스 초기화
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
-// 채점 로직: 띄어쓰기/문장부호 무시, 글자 틀리면 0점
-function _0x1a(_0x1b,_0x1c){
-    let _0x1d=_0x1b.replace(/[\s\.\,\?\!\'\"0-9]/g,''),
-        _0x1e=_0x1c.replace(/[\s\.\,\?\!\'\"0-9]/g,'');
-    if(_0x1d===_0x1e) return 100; // 완벽 일치 시 100점
+// 성구 데이터베이스
+const bibleData = [{id:1,title:"계 1:1~3",verses:[{n:"1",t:"예수 그리스도의 계시라 이는 하나님이 그에게 주사 반드시 속히 될 일을 그 종들에게 보이시려고 그 천사를 그 종 요한에게 보내어 지시하신 것이라"},{n:"2",t:"요한은 하나님의 말씀과 예수 그리스도의 증거 곧 자기의 본 것을 다 증거하였느니라"},{n:"3",t:"이 예언의 말씀을 읽는 자와 듣는 자들과 그 가운데 기록한 것을 지키는 자들이 복이 있나니 때가 가까움이라"}]},{id:2,title:"계 3:12",verses:[{n:"12",t:"이기는 자는 내 하나님 성전에 기둥이 되게 하리니 그가 결코 다시 나가지 아니하리라 내가 하나님의 이름과 하나님의 성 곧 하늘에서 내 하나님께로부터 내려오는 새 예루살렘의 이름과 나의 새 이름을 그이 위에 기록하리라"}]},{id:3,title:"계 7:1~4",verses:[{n:"1",t:"이 일 후에 내가 네 천사가 땅 네 모퉁이에 선 것을 보니 땅의 사방의 바람을 붙잡아 바람으로 하여금 땅에나 바다에나 각종 나무에 불지 못하게 하더라"},{n:"2",t:"또 보매 다른 천사가 살아 계신 하나님의 인을 가지고 해 돋는 데로부터 올라와서 땅과 바다를 해롭게 할 권세를 얻은 네 천사를 향하여 큰 소리로 외쳐"},{n:"3",t:"가로되 우리가 우리 하나님의 종들의 이마에 인치기까지 땅이나 바다나 나무나 해하지 말라 하더라"},{n:"4",t:"내가 인 맞은 자의 수를 들으니 이스라엘 자손의 각 지파 중에서 인 맞은 자들이 십사만 사천이니"}]},{id:4,title:"계 10:10~11",verses:[{n:"10",t:"내가 천사의 손에서 작은 책을 갖다 먹어버리니 내 입에는 꿀같이 다나 먹은 후에 내 배에서는 쓰게 되더라"},{n:"11",t:"저가 내게 말하기를 네가 많은 백성과 나라와 방언과 임금에게 다시 예언하여야 하리라 하더라"}]},{id:5,title:"계 11:15",verses:[{n:"15",t:"일곱째 천사가 나팔을 불매 하늘에 큰 음성들이 나서 가로되 세상 나라가 우리 주와 그 그리스도의 나라가 되어 그가 세세토록 왕 노릇 하시리로다 하니"}]},{id:6,title:"계 14:1~5",verses:[{n:"1",t:"또 내가 보니 보라 어린 양이 시온 산에 섰고 그와 함께 십사만 사천이 섰는데 그 이마에 어린양의 이름과 그 아버지의 이름을 쓴 것이 있도다"},{n:"2",t:"내가 하늘에서 나는 소리를 들으니 많은 물소리도 같고 큰 뇌성도 같은데 내게 들리는 소리는 거문고 타는 자들의 그 거문고 타는 것 같더라"},{n:"3",t:"저희가 보좌와 네 생물과 장로들 앞에서 새 노래를 부르니 땅에서 구속함을 얻은 십사만 사천 인 밖에는 능히 이 노래를 배울 자가 없더라"},{n:"4",t:"이 사람들은 여자로 더불어 더럽히지 아니하고 정절이 있는 자라 어린양이 어디로 인도하든지 따라가는 자며 사람 가운데서 구속을 받아 처음 익은 열매로 하나님과 어린양에게 속한 자들이니"},{n:"5",t:"그 입에 거짓말이 없고 흠이 없는 자들이더라"}]},{id:7,title:"계 20:4~6",verses:[{n:"4",t:"또 내가 보좌들을 보니 거기 앉은 자들이 있어 심판하는 권세를 받았더라 또 내가 보니 예수의 증거와 하나님의 말씀을 인하여 목 베임을 받은 자의 영혼들과 또 짐승과 그의 우상에게 경배하지도 아니하고 이마와 손에 그의 표를 받지도 아니한 자들이 살아서 그리스도로 더불어 천 년 동안 왕 노릇 하니"},{n:"5",t:"(그 나머지 죽은 자들은 그 천 년이 차기까지 살지 못하더라) 이는 첫째 부활이라"},{n:"6",t:"이 첫째 부활에 참예하는 자들은 복이 있고 거룩하도다 둘째 사망이 그들을 다스리는 권세가 없고 도리어 그들이 하나님과 그리스도의 제사장이 되어 천 년 동안 그리스도로 더불어 왕 노릇 하리라"}]},{id:8,title:"계 21:1~4",verses:[{n:"1",t:"또 내가 새 하늘과 새 땅을 보니 처음 하늘과 처음 땅이 없어졌고 바다도 다시 있지 않더라"},{n:"2",t:"또 내가 보매 거룩한 성 새 예루살렘이 하나님께로부터 하늘에서 내려오니 그 예비한 것이 신부가 남편을 위하여 단장한 것 같더라"},{n:"3",t:"내가 들으니 보좌에서 큰 음성이 나서 가로되 보라 하나님의 장막이 사람들과 함께 있으매 하나님이 저희와 함께 거하시리니 저희는 하나님의 백성이 되고 하나님은 친히 저희와 함께 계셔서"},{n:"4",t:"모든 눈물을 그 눈에서 씻기시매 다시 사망이 없고 애통하는 것이나 곡하는 것이나 아픈 것이 다시 있지 아니하리니 처음 것들이 다 지나갔음이러라"}]},{id:9,title:"계 22:1~2",verses:[{n:"1",t:"또 저가 수정같이 맑은 생명수의 강을 내게 보이니 하나님과 및 어린양의 보좌로부터 나서"},{n:"2",t:"길 가운데로 흐르더라 강 좌우에 생명나무가 있어 열두 가지 실과를 맺히되 달마다 그 실과를 맺히고 그 나무 잎사귀들은 만국을 소성하기 위하여 있더라"}]},{id:10,title:"계 22:18~19",verses:[{n:"18",t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"},{n:"19",t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}];
+
+// 상태 변수
+let examSettings = { isOpen: true, selectedIds: [1,2,3,4,5,6,7,8,9,10] };
+let currentQuestions = [];
+let isPracticeMode = false;
+let groupedAdminResults = [];
+
+// 유틸리티: ID로 요소 선택
+window.$ = (id) => document.getElementById(id);
+
+// 채점 로직: 띄어쓰기/문장부호 무시, 토씨 하나 틀리면 0점
+function calculateScore(userAns, correctAns) {
+    // 띄어쓰기, 마침표, 쉼표, 따옴표, 숫자 제거
+    let u = userAns.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
+    let c = correctAns.replace(/[\s\.\,\?\!\'\"0-9]/g, '');
+    if (u === c && u.length > 0) return 100; // 완벽 일치
     return 0; // 토씨 하나라도 다르면 0점
 }
 
-// 결과 표시 로직: 띄어쓰기 오답 처리 허용 (빨간색 표시 안함)
-function _0x24(_0x25,_0x26){
-    if(!_0x25)return'<span style="color:#999;">(미입력)</span>';
-    if(typeof Diff==='undefined')return _0x25;
+// 틀린 글자 가독성 표시 로직 (JsDiff 활용)
+function renderDiff(userAns, correctAns) {
+    if (!userAns) return '<span style="color:#999;">(미입력)</span>';
+    if (typeof Diff === 'undefined') return userAns;
 
-    // 변경된 부분: 정답과 제출답안에서 비교하지 않을 문장부호/띄어쓰기 정의
-    const normalizeRegex = /[\s\.\,\?\!\'\"0-9]/g;
-    
-    // 유저 답안에서 비교할 핵심 글자만 추출 (임시)
-    let normalizedUser = _0x25.replace(normalizeRegex, '');
-    // 정답 답안에서 비교할 핵심 글자만 추출 (임시)
-    let normalizedCorrect = _0x26.replace(normalizeRegex, '');
+    // 비교를 위해 문장부호 제거한 텍스트 생성
+    const cleanRegex = /[\s\.\,\?\!\'\"0-9]/g;
+    let uClean = userAns.replace(cleanRegex, '');
+    let cClean = correctAns.replace(cleanRegex, '');
 
-    // 핵심 글자끼리 비교
-    let _0x27=Diff.diffChars(normalizedCorrect, normalizedUser);
-    let _0x28='';
-    
-    _0x27.forEach(_0x29=>{
-        // value는 normalized 텍스트이므로 문장부호가 포함되지 않음
-        let _0x2a=_0x29.value; 
+    // jsdiff로 글자 단위 비교
+    let diffs = Diff.diffChars(cClean, uClean);
+    let html = '';
 
-        if(_0x29.added){
-            // 유저가 추가로 더 입력한 핵심 글자 (틀린 글자 추가) -> 빨간색
-            _0x28+=`<span class="diff-error" style="text-decoration:underline;" title="틀린 글자 추가">${_0x2a}</span>`;
-        } else if(_0x29.removed) {
-            // 유저가 빠트린 핵심 글자 -> 빨간색
-            _0x28+=`<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through;" title="빠트린 글자">${_0x2a}</span>`;
+    diffs.forEach(part => {
+        let text = part.value; // 문장부호 없는 글자들
+
+        if (part.added) {
+            // 정답에 없는 글자를 유저가 추가함 -> 빨간색 밑줄
+            html += `<span class="diff-error" style="text-decoration:underline;" title="틀린 글자 추가">${text}</span>`;
+        } else if (part.removed) {
+            // 정답에 있는 글자를 유저가 빠트림 -> 빨간색 배경+취소선
+            html += `<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through;" title="빠트린 글자">${text}</span>`;
         } else {
-            // 정답과 일치하는 글자 -> 파란색
-            _0x28+=`<span class="diff-correct">${_0x2a}</span>`;
+            // 일치함 -> 파란색
+            html += `<span class="diff-correct">${text}</span>`;
         }
     });
 
-    // 참고: 글자 기반 비교이므로 최종 출력에는 원래 띄어쓰기가 복원되지 않습니다.
-    // 띄어쓰기 오류를 무시하고 semantic하게 맞는지 보여주는 것이 목적이므로 타당합니다.
-    return _0x28;
+    return html;
 }
 
-window.onload=async()=>{
-    let _0x2b=await _0x4(_0x3(_0x11,"settings","examV5"));
-    if(_0x2b.exists())_0x15=_0x2b.data();
-    if(!_0x15.isOpen){
-        $("btn-exam").classList.add("hidden");
-        $("msg-closed").classList.remove("hidden");
-    }
+// 초기화: DB에서 설정 불러오기
+window.onload = async () => {
+    try {
+        let snap = await getDoc(doc(db, "settings", "examV5"));
+        if (snap.exists()) examSettings = snap.data();
+        if (!examSettings.isOpen) {
+            $("btn-exam").classList.add("hidden");
+            $("msg-closed").classList.remove("hidden");
+        }
+    } catch (e) { console.error("설정 로딩 실패:", e); }
 };
 
-function _0x2c(_0x2d){
-    ["screen-home","screen-practice-setup","screen-exam","screen-result","screen-admin-auth","screen-admin"].forEach(_0x2e=>$( _0x2e).classList.add("hidden"));
-    $(_0x2d).classList.remove("hidden");
-    window.scrollTo(0,0)
+// 화면 전환 함수
+function showScreen(screenId) {
+    ["screen-home", "screen-practice-setup", "screen-exam", "screen-result", "screen-admin-auth", "screen-admin"].forEach(id => $(id).classList.add("hidden"));
+    $(screenId).classList.remove("hidden");
+    window.scrollTo(0, 0);
 }
 
-window.checkStart=function(_0x2f){
-    let _0x30=$("in-region").value,_0x31=$("in-dept").value,_0x32=$("in-role").value,_0x33=$("in-name").value;
-    if(_0x30==="49"&&_0x31==="49"&&_0x32==="49"&&_0x33==="49")return _0x2c("screen-admin-auth");
-    if(!_0x2f&&(!_0x30||!_0x31||!_0x32||!_0x33))return alert("모든 인적사항을 입력해주세요.");
-    _0x17=_0x2f;
-    _0x34()
+// 응시/연습 시작 전 검증
+window.checkStart = function (practice) {
+    let region = $("in-region").value.trim();
+    let dept = $("in-dept").value.trim();
+    let role = $("in-role").value.trim();
+    let name = $("in-name").value.trim();
+
+    // 관리자 백도어
+    if (region === "49" && dept === "49" && role === "49" && name === "49") return showScreen("screen-admin-auth");
+
+    if (!practice && (!region || !dept || !role || !name)) return alert("모든 인적사항을 입력해주세요.");
+    isPracticeMode = practice;
+    startExam();
 };
 
-window.openPracticeSetup=()=>{
-    let _0x35='';
-    _0x14.forEach(_0x36=>_0x35+=`<label style="display:block; margin-bottom:5px;"><input type="checkbox" class="p-cb" value="${_0x36.id}" checked> ${_0x36.title}</label>`);
-    $("practice-list").innerHTML=_0x35;
-    _0x2c("screen-practice-setup")
+// 연습모드 설정 화면 오픈
+window.openPracticeSetup = () => {
+    let listHtml = '';
+    bibleData.forEach(item => listHtml += `<label style="display:block; margin-bottom:5px;"><input type="checkbox" class="p-cb" value="${item.id}" checked> ${item.title}</label>`);
+    $("practice-list").innerHTML = listHtml;
+    showScreen("screen-practice-setup");
 };
 
-window.retakeExam=()=>{_0x34()};
+// 결과화면에서 재시험
+window.retakeExam = () => { startExam(); };
 
-// 출제 준비 로직 (본 시험에서도 출제 방식 적용 및 '절 나누기' 우선)
-function _0x34(){
-    _0x16=[];
-    let _0x37=[],_0x38=_0x17?$("practice-type").value:$("in-type").value,_0x39=_0x17?$("practice-order").value:$("in-order").value;
-    
-    let _isChunk = _0x38 === 'chunk';
-    
-    if(_0x17){
-        // 연습모드
-        let _0x3a=Array.from(document.querySelectorAll(".p-cb:checked")).map(_0x3b=>parseInt(_0x3b.value));
-        _0x14.filter(_0x3c=>_0x3a.includes(_0x3c.id)).forEach(_0x3d=>{
-            if(_isChunk) {
-                _0x37.push({title:_0x3d.title,text:_0x3d.verses.map(_0x3e=>_0x3e.t).join(" ")});
+// 시험/연습 시작 (문제 생성 및 화면 전환)
+function startExam() {
+    currentQuestions = [];
+    let rawQuestions = [];
+    let isChunkMode = true; // 기본 방식 변수
+    let order = 'sequential'; // 기본 순서 변수
+
+    if (isPracticeMode) {
+        // 연습모드 설정 가져오기
+        let selectedPracticeIds = Array.from(document.querySelectorAll(".p-cb:checked")).map(cb => parseInt(cb.value));
+        if (selectedPracticeIds.length === 0) return alert("최소 하나 이상의 성구를 선택해주세요.");
+        isChunkMode = $("practice-type").value === 'chunk';
+        order = $("practice-order").value;
+
+        bibleData.filter(b => selectedPracticeIds.includes(b.id)).forEach(b => {
+            if (isChunkMode) {
+                rawQuestions.push({ title: b.title, text: b.verses.map(v => v.t).join(" ") });
             } else {
-                _0x3d.verses.forEach(_0x3f=>_0x37.push({title:`${_0x3d.title.split(':')[0]} ${_0x3f.n}절`,text:_0x3f.t}))
+                b.verses.forEach(v => rawQuestions.push({ title: `${b.title.split(':')[0]} ${v.n}절`, text: v.t }));
             }
-        })
-    }else{
-        // 본 시험
-        _0x14.filter(_0x40=>_0x15.selectedIds.includes(_0x40.id)).forEach(_0x41=>{
-            if(_isChunk) {
-                _0x37.push({title:_0x41.title,text:_0x41.verses.map(_0x42=>_0x42.t).join(" ")});
+        });
+    } else {
+        // 본 시험 설정 가져오기 (DB 설정 + 화면 설정 통합)
+        isChunkMode = $("in-type").value === 'chunk';
+        order = $("in-order").value;
+
+        bibleData.filter(b => examSettings.selectedIds.includes(b.id)).forEach(b => {
+            if (isChunkMode) {
+                rawQuestions.push({ title: b.title, text: b.verses.map(v => v.t).join(" ") });
             } else {
-                _0x41.verses.forEach(v => {
-                    _0x37.push({title: `${_0x41.title.split(':')[0]} ${v.n}절`, text: v.t});
-                });
+                b.verses.forEach(v => rawQuestions.push({ title: `${b.title.split(':')[0]} ${v.n}절`, text: v.t }));
             }
-        })
+        });
     }
-    
-    _0x16=_0x39==='random'?_0x37.sort(()=>Math.random()-.5):_0x37;
-    let _0x43='';
-    _0x16.forEach((_0x44,_0x45)=>{
-        _0x43+=`<div class="question-box"><div class="q-title">Q${_0x45+1}. ${_0x44.title}</div><textarea class="ans" data-qi="${_0x45}" placeholder="이곳에 말씀을 작성하세요."></textarea></div>`
+
+    // 순서 정렬
+    currentQuestions = order === 'random' ? rawQuestions.sort(() => Math.random() - 0.5) : rawQuestions;
+
+    // HTML 생성
+    let qHtml = '';
+    currentQuestions.forEach((q, idx) => {
+        qHtml += `<div class="question-box"><div class="q-title">Q${idx + 1}. ${q.title}</div><textarea class="ans" data-qi="${idx}" placeholder="이곳에 말씀을 작성하세요..."></textarea></div>`
     });
-    $("question-container").innerHTML=_0x43;
-    $("exam-title").innerText=_0x17?"연습모드 응시 중":"본 시험 응시 중";
-    $("exam-info").innerText=`${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
-    _0x2c("screen-exam")
+
+    $("question-container").innerHTML = qHtml;
+    $("exam-title").innerText = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
+    $("exam-info").innerText = `${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
+    showScreen("screen-exam");
 }
 
-window.submitExam=async()=>{
-    if(!confirm("제출하시겠습니까?"))return;
-    let _0x46=0,_0x47='',_0x48=[];
-    _0x16.forEach((_0x49,_0x4a)=>{
-        let _0x4b=document.querySelector(`.ans[data-qi="${_0x4a}"]`).value.trim(),
-            _0x4c=_0x1a(_0x4b,_0x49.text);
-        _0x46+=_0x4c;
-        let _0x4d=_0x4c===100?'acc-high':_0x4c>60?'acc-mid':'acc-low', // 100점일 때만 녹색
-            _0x4e=_0x24(_0x4b,_0x49.text);
-        _0x47+=`<div class="question-box" style="margin-bottom:15px;"><div class="q-title">${_0x49.title} <span class="acc-badge ${_0x4d}">정확도 ${_0x4c}%</span></div><div style="font-size:14px; margin-bottom:12px;"><strong style="color:#555;">[나의 작성 답안]</strong><br><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${_0x4e}</div></div><div style="font-size:14px;"><strong style="color:#10b981;">[총 정답]</strong><br><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${_0x49.text}</div></div></div>`;
-        _0x48.push({title:_0x49.title,user:_0x4b,correct:_0x49.text,acc:_0x4c})
+// 답안 제출 및 채점
+window.submitExam = async () => {
+    if (!confirm("제출하시겠습니까?")) return;
+    
+    let totalScore = 0;
+    let detailsHtml = '';
+    let dbDetails = [];
+
+    currentQuestions.forEach((q, idx) => {
+        let userAns = document.querySelector(`.ans[data-qi="${idx}"]`).value.trim();
+        let score = calculateScore(userAns, q.text);
+        totalScore += score;
+
+        let badgeClass = score === 100 ? 'acc-high' : 'acc-low';
+        let diffHtml = renderDiff(userAns, q.text);
+
+        // 결과 화면 HTML
+        detailsHtml += `<div class="question-box" style="margin-bottom:15px;"><div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${score}%</span></div><div style="font-size:14px; margin-bottom:12px;"><strong style="color:#555;">[나의 작성 답안] (틀린 글자 표시)</strong><br><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div></div><div style="font-size:14px;"><strong style="color:#10b981;">[총 정답]</strong><br><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${q.text}</div></div></div>`;
+        
+        // DB 저장용 데이터
+        dbDetails.push({ title: q.title, user: userAns, correct: q.text, acc: score });
     });
-    
-    let _0x4f=Math.round(_0x46/_0x16.length);
-    $("res-score").innerText=`${_0x4f}점`;
-    $("res-acc").innerText=`평균 정확도: ${_0x4f}%`;
-    $("res-user").innerText=`${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
-    $("result-details").innerHTML=_0x47;
-    
-    if(!_0x17){
-        try{
-            // DB 저장 컬렉션 이름 유지: examResultsV5
-            await _0x7(_0x6(_0x11,"examResultsV5"),{region:$("in-region").value,dept:$("in-dept").value,role:$("in-role").value,name:$("in-name").value,score:_0x4f,avgAcc:_0x4f,details:_0x48,timestamp:new Date()})
-        }catch(e){
+
+    let avgScore = Math.round(totalScore / currentQuestions.length);
+    $("res-score").innerText = `${avgScore}점`;
+    $("res-acc").innerText = `평균 정확도: ${avgScore}%`;
+    $("res-user").innerText = `${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
+    $("result-details").innerHTML = detailsHtml;
+
+    // 본 시험일 때만 DB 저장
+    if (!isPracticeMode) {
+        try {
+            await addDoc(collection(db, "examResultsV5"), {
+                region: $("in-region").value,
+                dept: $("in-dept").value,
+                role: $("in-role").value,
+                name: $("in-name").value,
+                score: avgScore,
+                avgAcc: avgScore, // 하위 호환
+                details: dbDetails,
+                timestamp: new Date()
+            });
+        } catch (e) {
             console.error(e);
-            alert("DB 저장 중 오류가 발생했습니다. 권한이나 인터넷 상태를 확인해주세요.\n(채점 결과 화면으로 이동합니다.)");
+            alert("DB 저장 중 오류가 발생했습니다. 권한이나 인터넷 상태를 확인해주세요.");
         }
     }
-    _0x2c("screen-result")
+    showScreen("screen-result");
 };
 
-window.adminLogin=async()=>{
-    try{
-        let _0x50=await _0xd(_0x12,_0x13);
-        if(_0x50.user.email.toLowerCase()==="cjsrhtl@gmail.com"){
-            _0x51();
-            _0x2c("screen-admin")
-        }else{
+// --- 관리자 기능 ---
+
+// 관리자 로그인 (구글 팝업)
+window.adminLogin = async () => {
+    try {
+        let res = await signInWithPopup(auth, provider);
+        // 허용된 관리자 이메일 체크
+        if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
+            loadAdminData();
+            showScreen("screen-admin");
+        } else {
             alert("권한이 없습니다.");
-            _0x12.signOut()
+            auth.signOut();
+            location.reload();
         }
-    }catch(_0x52){
-        alert("로그인 실패")
-    }
+    } catch (e) { alert("로그인 실패"); console.error(e); }
 };
 
-async function _0x51(){
-    $("set-isopen").value=_0x15.isOpen.toString();
-    let _0x53='';
-    _0x14.forEach(_0x54=>{
-        let _0x55=_0x15.selectedIds.includes(_0x54.id)?'checked':'';
-        _0x53+=`<label style="display:inline-block; margin-right:15px; margin-bottom:5px;"><input type="checkbox" class="a-cb" value="${_0x54.id}" ${_0x55}> ${_0x54.title}</label>`
+// 관리자 데이터 로딩 (설정 + 응시 목록)
+async function loadAdminData() {
+    // 1. 시험 설정 로딩
+    $("set-isopen").value = examSettings.isOpen.toString();
+    let chunkHtml = '';
+    bibleData.forEach(b => {
+        let checked = examSettings.selectedIds.includes(b.id) ? 'checked' : '';
+        chunkHtml += `<label style="display:inline-block; margin-right:15px; margin-bottom:5px;"><input type="checkbox" class="a-cb" value="${b.id}" ${checked}> ${b.title}</label>`
     });
-    $("admin-chunk-list").innerHTML=_0x53;
-    
-    // DB 불러오기 컬렉션 이름 유지: examResultsV5
-    let _0x56=await _0x8(_0x9(_0x6(_0x11,"examResultsV5"),_0xa("timestamp","asc"))),_0x57={};
-    _0x56.forEach(_0x58=>{
-        let _0x59=_0x58.data();
-        _0x59.id=_0x58.id;
-        let _0x5a=`${_0x59.region}_${_0x59.dept}_${_0x59.role}_${_0x59.name}`;
-        if(!_0x57[_0x5a])_0x57[_0x5a]={key:_0x5a,info:_0x59,attempts:[]};
-        _0x57[_0x5a].attempts.push(_0x59)
+    $("admin-chunk-list").innerHTML = chunkHtml;
+
+    // 2. 응시 목록 로딩 및 그룹화 (재시험 통합)
+    let snap = await getDocs(query(collection(db, "examResultsV5"), orderBy("timestamp", "asc")));
+    let groups = {};
+
+    snap.forEach(docSnap => {
+        let data = docSnap.data();
+        data.id = docSnap.id; // 삭제용 ID 추가
+        // 고유 키: 지역_부서_직책_이름
+        let key = `${data.region}_${data.dept}_${data.role}_${data.name}`;
+        if (!groups[key]) groups[key] = { key: key, info: data, attempts: [] };
+        groups[key].attempts.push(data);
     });
-    _0x18=Object.values(_0x57).map(_0x5b=>{
-        _0x5b.maxScore=Math.max(..._0x5b.attempts.map(_0x5c=>_0x5c.score));
-        _0x5b.latestTime=Math.max(..._0x5b.attempts.map(_0x5d=>_0x5d.timestamp?_0x5d.timestamp.seconds:0));
-        return _0x5b
+
+    // 가공: 최고점수, 최근응시시간 계산
+    groupedAdminResults = Object.values(groups).map(g => {
+        g.maxScore = Math.max(...g.attempts.map(a => a.score));
+        // 타임스탬프가 객체일 경우(서버시간)와 Date일 경우 처리
+        g.latestTime = Math.max(...g.attempts.map(a => {
+            if(!a.timestamp) return 0;
+            return a.timestamp.seconds ? a.timestamp.seconds : a.timestamp.getTime() / 1000;
+        }));
+        return g;
     });
-    window.renderAdminTable()
+
+    renderAdminTable();
 }
 
-window.renderAdminTable=()=>{
-    let _0x5e=$("admin-sort").value,_0x5f=[..._0x18];
-    if(_0x5e==='scoreDesc')_0x5f.sort((_0x60,_0x61)=>_0x61.maxScore-_0x60.maxScore);
-    else if(_0x5e==='nameAsc')_0x5f.sort((_0x62,_0x63)=>_0x62.info.name.localeCompare(_0x63.info.name));
-    else _0x5f.sort((_0x64,_0x65)=>_0x65.latestTime-_0x64.latestTime);
-    let _066='';
-    _0x5f.forEach(_0x67=>{
-        let _0x68=new Date(_0x67.latestTime*1000).toLocaleString(),
-            _0x69=_0x67.attempts.length>1?`<span style="color:var(--error); font-weight:bold;">O (${_0x67.attempts.length}회)</span>`:`<span style="color:#999;">X</span>`;
-        _0x66+=`<tr><td style="text-align:left;"><div style="font-size:11px; color:#888;">${_0x67.info.region} / ${_0x67.info.dept} / ${_0x67.info.role}</div><strong>${_0x67.info.name}</strong></td><td><strong style="color:var(--primary); font-size:16px;">${_0x67.maxScore}점</strong></td><td>${_0x69}</td><td style="font-size:12px; color:#666;">${_0x68}</td><td><button class="btn btn-sm btn-outline" onclick="showUserModal('${_0x67.key}')">상세보기</button></td></tr>`
+// 관리자 테이블 렌더링 (정렬 포함)
+window.renderAdminTable = () => {
+    let sort = $("admin-sort").value;
+    let list = [...groupedAdminResults];
+
+    // 정렬 로직
+    if (sort === 'scoreDesc') list.sort((a, b) => b.maxScore - a.maxScore);
+    else if (sort === 'nameAsc') list.sort((a, b) => a.info.name.localeCompare(b.info.name));
+    else list.sort((a, b) => b.latestTime - a.latestTime); // 최신순
+
+    let tbodyHtml = '';
+    list.forEach(g => {
+        let dateStr = new Date(g.latestTime * 1000).toLocaleString();
+        let retakeHtml = g.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${g.attempts.length}회)</span>` : `<span style="color:#999;">X</span>`;
+        
+        tbodyHtml += `<tr><td style="text-align:left;"><div style="font-size:11px; color:#888;">${g.info.region} / ${g.info.dept} / ${g.info.role}</div><strong>${g.info.name}</strong></td><td><strong style="color:var(--primary); font-size:16px;">${g.maxScore}점</strong></td><td>${retakeHtml}</td><td style="font-size:12px; color:#666;">${dateStr}</td><td><button class="btn btn-sm btn-outline" onclick="showUserModal('${g.key}')">상세보기</button></td></tr>`
     });
-    let _0x6a=$("admin-res-table").querySelector("tbody");
-    if(_0x66==='')_0x66=`<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
-    _0x6a.innerHTML=_0x66
+
+    let tbody = $("admin-res-table").querySelector("tbody");
+    if (tbodyHtml === '') tbodyHtml = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
+    tbody.innerHTML = tbodyHtml;
 };
 
-window.showUserModal=_0x6b=>{
-    let _0x6c=_0x18.find(_0x6d=>_0x6d.key===_0x6b);
-    if(!_0x6c)return;
-    $("modal-title").innerText=`[${_0x6c.info.name}] 님의 응시 내역 (최고점: ${_0x6c.maxScore}점)`;
-    let _0x6e='<div style="margin-bottom:15px; display:flex; gap:5px; flex-wrap:wrap;">';
-    _0x6c.attempts.forEach((_0x6f,_0x70)=>{
-        let _0x71=_0x70===_0x6c.attempts.length-1?'btn-primary':'btn-secondary';
-        _0x6e+=`<button class="btn btn-sm ${_0x71}" style="margin:0;" onclick="renderAttemptDetail('${_0x6b}', ${_0x70})">${_0x70+1}회차 (${_0x6f.score}점)</button>`
-    });
-    _0x6e+='</div>';
-    $("modal-body").innerHTML=_0x6e+`<div id="attempt-detail-container"></div>`;
-    $("modal-detail").classList.remove("hidden");
-    window.renderAttemptDetail(_0x6b,_0x6c.attempts.length-1)
-};
+// 유저 상세 모달 표시
+window.showUserModal = (key) => {
+    let group = groupedAdminResults.find(g => g.key === key);
+    if (!group) return;
 
-window.renderAttemptDetail=(_0x72,_0x73)=>{
-    let _0x74=_0x18.find(_0x75=>_0x75.key===_0x72),
-        _0x76=_0x74.attempts[_0x73],
-        _0x77=`<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;"><strong style="font-size:16px;">${_0x73+1}회차 답안 (점수: ${_0x76.score}점)</strong><button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${_0x72}', '${_0x76.id}')">이 회차 삭제</button></div>`;
+    $("modal-title").innerText = `[${group.info.name}] 님의 응시 내역 (최고: ${group.maxScore}점)`;
     
-    if(!_0x76.details||_0x76.details.length===0){
-        _0x77+='<p>상세 데이터가 없습니다.</p>'
-    }else{
-        _0x76.details.forEach(_0x78=>{
-            let _0x79=_0x78.acc>90?'var(--success)':_0x78.acc>60?'#f59e0b':'var(--error)',
-                _0x7a=_0x24(_0x78.user,_0x78.correct);
-            _0x77+=`<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${_0x78.title}</strong> <span style="color:white; background:${_0x79}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${_0x78.acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안]</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${_0x7a}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${_0x78.correct}</div></div></div>`
-        })
-    }
-    $("attempt-detail-container").innerHTML=_0x77
+    // 회차 선택 버튼 생성
+    let navHtml = '<div style="margin-bottom:15px; display:flex; gap:5px; flex-wrap:wrap;">';
+    group.attempts.forEach((att, idx) => {
+        // 마지막 회차 부각
+        let btnClass = idx === group.attempts.length - 1 ? 'btn-primary' : 'btn-secondary';
+        navHtml += `<button class="btn btn-sm ${btnClass}" style="margin:0;" onclick="renderAttemptDetail('${key}', ${idx})">${idx + 1}회차 (${att.score}점)</button>`
+    });
+    navHtml += '</div>';
+
+    $("modal-body").innerHTML = navHtml + `<div id="attempt-detail-container"></div>`;
+    $("modal-detail").classList.remove("hidden");
+    
+    // 초기값으로 마지막 회차 상세 표시
+    renderAttemptDetail(key, group.attempts.length - 1);
 };
 
-window.deleteAttempt=async(_0x7b,_0x7c)=>{
-    if(!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?"))return;
-    try{
-        // DB 삭제 컬렉션 이름 유지: examResultsV5
-        await _0xb(_0x3(_0x11,"examResultsV5",_0x7c));
+// 모달 내 특정 회차 상세 답안 렌더링
+window.renderAttemptDetail = (key, attIdx) => {
+    let group = groupedAdminResults.find(g => g.key === key);
+    let att = group.attempts[attIdx];
+    
+    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;"><strong style="font-size:16px;">${attIdx + 1}회차 답안 (점수: ${att.score}점)</strong><button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${key}', '${att.id}')">이 회차 삭제</button></div>`;
+
+    if (!att.details || att.details.length === 0) {
+        html += '<p>상세 데이터가 없습니다. (구버전 기록)</p>';
+    } else {
+        att.details.forEach(det => {
+            let badgeColor = det.acc === 100 ? 'var(--success)' : 'var(--error)';
+            let diffHtml = renderDiff(det.user, det.correct);
+            
+            html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${det.title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${det.acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안] (틀린 글자 표시)</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${det.correct}</div></div></div>`
+        });
+    }
+    $("attempt-detail-container").innerHTML = html;
+};
+
+// 특정 응시 기록 삭제
+window.deleteAttempt = async (key, docId) => {
+    if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?\n삭제 후 복구할 수 없으며, 최고 점수가 변동될 수 있습니다.")) return;
+    try {
+        await deleteDoc(doc(db, "examResultsV5", docId));
         alert("삭제되었습니다.");
         $('modal-detail').classList.add('hidden');
-        _0x51()
-    }catch(_0x7d){
-        alert("삭제 실패")
-    }
+        loadAdminData(); // 데이터 새로고침
+    } catch (e) { alert("삭제 실패"); console.error(e); }
 };
 
-window.downloadExcel=()=>{
-    if(_0x18.length===0)return alert("다운로드할 데이터가 없습니다.");
-    let _0x7e="\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
-    _0x18.forEach(_0x7f=>{
-        let _0x80=new Date(_0x7f.latestTime*1000).toLocaleString(),
-            _0x81=[_0x7f.info.region,_0x7f.info.dept,_0x7f.info.role,_0x7f.info.name,_0x7f.maxScore,_0x7f.attempts.length,_0x80].map(_0x82=>`"${String(_0x82).replace(/"/g,'""')}"`);
-        _0x7e+=_0x81.join(",")+"\n"
+// 엑셀(CSV) 다운로드
+window.downloadExcel = () => {
+    if (groupedAdminResults.length === 0) return alert("다운로드할 데이터가 없습니다.");
+    // 한글 깨짐 방지 BOM
+    let csv = "\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
+    groupedAdminResults.forEach(g => {
+        let dateStr = new Date(g.latestTime * 1000).toLocaleString();
+        // 쉼표, 따옴표 처리
+        let row = [g.info.region, g.info.dept, g.info.role, g.info.name, g.maxScore, g.attempts.length, dateStr].map(v => `"${String(v).replace(/"/g, '""')}"`);
+        csv += row.join(",") + "\n";
     });
-    let _0x83=new Blob([_0x7e],{type:'text/csv;charset=utf-8;'}),
-        _0x84=document.createElement("a");
-    _0x84.href=URL.createObjectURL(_0x83);
-    _0x84.download=`사명자_실력점검_결과(재시험통합)_${new Date().toISOString().slice(0,10)}.csv`;
-    _0x84.click()
+
+    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `사명자_실력점검_결과V5_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
 };
 
-window.saveAdminSettings=async()=>{
-    let _0x85=$("set-isopen").value==="true",
-        _0x86=Array.from(document.querySelectorAll(".a-cb:checked")).map(_0x87=>parseInt(_0x87.value));
-    
-    // 설정 저장 경로 유지: settings/examV5
-    await _0x5(_0x3(_0x11,"settings","examV5"),{isOpen:_0x85,selectedIds:_0x86});
-    alert("설정이 저장되었습니다.");
-    location.reload()
+// 관리자 설정 저장 (활성화여부, 성구선택)
+window.saveAdminSettings = async () => {
+    try {
+        let isOpen = $("set-isopen").value === "true";
+        let selectedIds = Array.from(document.querySelectorAll(".a-cb:checked")).map(cb => parseInt(cb.value));
+        if (selectedIds.length === 0) return alert("최소 하나 이상의 성구를 본 시험용으로 선택해주세요.");
+        
+        await setDoc(doc(db, "settings", "examV5"), { isOpen, selectedIds });
+        alert("설정이 저장되었습니다.");
+        location.reload();
+    } catch (e) { alert("저장 실패"); console.error(e); }
 };
 </script>
 </body>
