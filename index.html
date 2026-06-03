@@ -43,7 +43,6 @@ th{background:#f1f5f9;font-weight:700}
 .close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
 .diff-correct{color:var(--correct-blue);font-weight:700}
 .diff-error{color:var(--error);font-weight:700}
-/* 자동 줄바꿈 속성 완벽 반영 파트 */
 .result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word}
 .verse-label {font-size: 14px; font-weight: 700; color: var(--primary); display: inline-block; margin-top: 5px; margin-bottom: 2px;}
 </style>
@@ -225,36 +224,40 @@ function calculateScore(userAns, correctAns) {
 }
 
 // =========================================================================
-// 🛠️ 오답 단어(어절) 단위 기반 정밀 하이라이팅 매핑 로직
+// 🛠️ 1:1 글자 매칭 하이라이트 (띄어쓰기 완전 투명인간 취급 로직)
 // =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
-    if (typeof Diff === 'undefined') return userAns;
 
     const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
-
-    // 공백 및 조사 노이즈를 제어하기 위해 단어별로 정밀 압축 배열 생성
-    let uWords = userAns.split(/\s+/).map(w => w.replace(cleanRegex, '')).filter(w => w.length > 0);
-    let cWords = correctAns.split(/\s+/).map(w => w.replace(cleanRegex, '')).filter(w => w.length > 0);
-
-    let diffs = Diff.diffArrays(cWords, uWords);
-    let html = '';
-
-    diffs.forEach(part => {
-        let text = part.value.join(' ');
-        if (!text) return;
-
-        if (part.added) {
-            html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; margin: 0 2px;" title="틀린 단어">${text}</span> `;
-        } else if (part.removed) {
-            html += `<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through; margin: 0 2px;" title="빠진 단어">${text}</span> `;
-        } else {
-            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700; margin: 0 2px;">${text}</span> `;
-        }
-    });
     
-    return html.trim();
+    // 채점 기준과 완벽 매칭되도록 띄어쓰기와 문장부호를 제거한 순수 글자배열 추출
+    let uClean = userAns.replace(cleanRegex, '');
+    let cClean = correctAns.replace(cleanRegex, '');
+
+    let html = '';
+    let maxLength = Math.max(uClean.length, cClean.length);
+    
+    for (let i = 0; i < maxLength; i++) {
+        let uChar = uClean[i] || ''; 
+        let cChar = cClean[i] || ''; 
+
+        if (uChar === cChar) {
+            // 글자가 맞으면 정상 파란색 출력
+            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${uChar}</span>`;
+        } else {
+            // 글자가 어긋난 정밀 부위만 저격해서 빨간색 하이라이트 처리
+            if (uChar) {
+                html += `<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; font-weight:700; text-decoration:underline;" title="정답: ${cChar}">${uChar}</span>`;
+            } else {
+                // 글자를 빼먹어 누락된 경우 오렌지색 취소선 출력
+                html += `<span class="diff-error" style="background-color:#fed7aa; color:#9a3412; text-decoration:line-through;" title="누락된 글자">${cChar}</span>`;
+            }
+        }
+    }
+    
+    return html;
 }
 
 window.onload = async () => {
