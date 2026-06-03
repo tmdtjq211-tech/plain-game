@@ -6,9 +6,9 @@
 <title>실력 점검 시험 시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
 <style>
-:root{--primary:#1e3a8a;--secondary:#fbbf24;--bg-color:#f3f4f6;--card-bg:#ffffff;--text-main:#333333;--success:#10b981;--error:#ef4444;--correct-blue:#2563eb}
+:root{--primary:#1e3a8a;--secondary:#fbbf24;--bg-color:#f3f4f6;--card-bg:#ffffff;--success:#10b981;--error:#ef4444;--correct-blue:#2563eb}
 body{font-family:'Malgun Gothic',sans-serif;background-color:var(--bg-color);margin:0;padding:20px 10px;display:flex;justify-content:center;min-height:100vh}
-.container{background:var(--card-bg);width:100%;max-width:800px;padding:30px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.05);border-top:8px solid var(--primary);position:relative}
+.container{background:var(--card-bg);width:100%;max-width:800px;padding:30px;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.05);border-top:8px solid var(--primary)}
 h2,h3{color:var(--primary);text-align:center}
 h3{margin-top:0}
 .btn{width:100%;padding:14px;background-color:var(--primary);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:700;cursor:pointer;transition:.2s;margin-top:10px}
@@ -38,28 +38,15 @@ th{background:#f1f5f9;font-weight:700}
 .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);display:flex;justify-content:center;align-items:center;z-index:1000;padding:20px;box-sizing:border-box}
 .modal-content{background:#fff;padding:25px;border-radius:12px;width:100%;max-width:700px;max-height:90vh;overflow-y:auto;position:relative}
 .close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
-.diff-correct{color:var(--correct-blue);font-weight:700}
-.diff-error{color:var(--error);font-weight:700}
 .result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:keep-all}
-.verse-label{font-size:14px;font-weight:700;color:var(--primary);display:inline-block;margin-top:5px;margin-bottom:2px;}
-.loading-msg{text-align:center;padding:20px;color:#666;font-size:14px;}
-
-/* 탭 스타일 */
-.tab-wrap{display:flex;gap:0;margin-bottom:20px;border-bottom:3px solid var(--primary);}
-.tab-btn{flex:1;padding:12px;border:none;background:#e5e7eb;color:#555;font-size:15px;font-weight:700;cursor:pointer;border-radius:8px 8px 0 0;transition:.2s;}
-.tab-btn.active{background:var(--primary);color:#fff;}
-.tab-panel{display:none;}
-.tab-panel.active{display:block;}
-
-/* 새기록 강조 */
-.badge-new{background:#7c3aed;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;}
-.badge-old{background:#6b7280;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;vertical-align:middle;}
+.verse-label{font-size:14px;font-weight:700;color:var(--primary);display:inline-block;margin-top:5px;margin-bottom:2px}
+.loading-msg{text-align:center;padding:20px;color:#666;font-size:14px}
 </style>
 </head>
 <body>
 <div class="container">
 
-  <!-- 화면: 홈 -->
+  <!-- 홈 -->
   <div id="screen-home">
     <h2 style="background:var(--secondary);padding:10px;border-radius:8px">사명자 실력 점검 시험</h2>
     <div id="msg-closed" class="hidden" style="color:var(--error);text-align:center;margin:10px;font-weight:700">※ 현재 본 시험 기간이 아닙니다.</div>
@@ -87,7 +74,7 @@ th{background:#f1f5f9;font-weight:700}
     <button class="btn btn-outline" onclick="openPracticeSetup()">연습모드 (기록 안됨)</button>
   </div>
 
-  <!-- 화면: 연습모드 설정 -->
+  <!-- 연습모드 설정 -->
   <div id="screen-practice-setup" class="hidden">
     <h2>연습모드 설정</h2>
     <div class="input-group"><label>연습할 성구 선택</label><div class="tree-view" id="practice-list"></div></div>
@@ -111,7 +98,7 @@ th{background:#f1f5f9;font-weight:700}
     <button class="btn btn-secondary" onclick="location.reload()">취소 및 돌아가기</button>
   </div>
 
-  <!-- 화면: 시험 중 -->
+  <!-- 시험 중 -->
   <div id="screen-exam" class="hidden">
     <h2 id="exam-title">시험 응시</h2>
     <div id="exam-info" style="text-align:right;font-size:13px;color:#666;margin-bottom:10px;font-weight:700"></div>
@@ -119,7 +106,7 @@ th{background:#f1f5f9;font-weight:700}
     <button class="btn" onclick="submitExam()" style="background:var(--success);font-size:18px;margin-top:30px">답안 제출 및 채점하기</button>
   </div>
 
-  <!-- 화면: 결과 -->
+  <!-- 결과 -->
   <div id="screen-result" class="hidden">
     <h2>채점 결과</h2>
     <div class="score-board">
@@ -134,7 +121,7 @@ th{background:#f1f5f9;font-weight:700}
     </div>
   </div>
 
-  <!-- 화면: 관리자 로그인 -->
+  <!-- 관리자 로그인 -->
   <div id="screen-admin-auth" class="hidden" style="text-align:center;padding:40px 0">
     <h2>관리자 인증</h2>
     <p style="color:#666">보안을 위해 관리자 구글 계정으로 로그인해주세요.</p>
@@ -142,11 +129,9 @@ th{background:#f1f5f9;font-weight:700}
     <button class="btn btn-secondary" onclick="location.reload()" style="width:auto">취소</button>
   </div>
 
-  <!-- 화면: 관리자 패널 -->
+  <!-- 관리자 패널 -->
   <div id="screen-admin" class="hidden">
     <h2>관리자 시스템</h2>
-
-    <!-- 기본 설정 -->
     <div class="input-group" style="background:#f9fafb;padding:15px;border-radius:8px;border:1px solid #ddd">
       <label>본 시험 응시 활성화</label>
       <select id="set-isopen">
@@ -161,62 +146,25 @@ th{background:#f1f5f9;font-weight:700}
     <button class="btn" onclick="saveAdminSettings()">기본 설정 저장</button>
 
     <hr style="margin:30px 0">
-    <h3>응시자 데이터 관리</h3>
-
-    <!-- 탭 -->
-    <div class="tab-wrap">
-      <button class="tab-btn active" onclick="switchTab('new')" id="tab-btn-new">
-        새 응시 기록 <span class="badge-new">V6</span>
-      </button>
-      <button class="tab-btn" onclick="switchTab('old')" id="tab-btn-old">
-        이전 응시 기록 <span class="badge-old">V5</span>
-      </button>
+    <h3>응시자 데이터 관리 (전체 통합)</h3>
+    <div class="admin-tools">
+      <div>
+        <label style="font-size:13px;font-weight:700;margin-right:5px">정렬:</label>
+        <select id="admin-sort" style="padding:5px;border-radius:4px;border:1px solid #ccc" onchange="renderAdminTable()">
+          <option value="dateDesc">최신순</option>
+          <option value="scoreDesc">최고점수 순</option>
+          <option value="nameAsc">이름순 (가나다)</option>
+        </select>
+      </div>
+      <button class="btn btn-sm" style="background:#10b981;margin:0" onclick="downloadExcel()">엑셀 다운로드 (CSV)</button>
     </div>
-
-    <!-- 새 기록 탭 -->
-    <div class="tab-panel active" id="tab-new">
-      <div class="admin-tools">
-        <div>
-          <label style="font-size:13px;font-weight:700;margin-right:5px">정렬:</label>
-          <select id="admin-sort-new" style="padding:5px;border-radius:4px;border:1px solid #ccc" onchange="renderTable('new')">
-            <option value="dateDesc">최신순</option>
-            <option value="scoreDesc">최고점수 순</option>
-            <option value="nameAsc">이름순 (가나다)</option>
-          </select>
-        </div>
-        <button class="btn btn-sm" style="background:#10b981;margin:0" onclick="downloadExcel('new')">엑셀 다운로드 (CSV)</button>
-      </div>
-      <div id="loading-new" class="loading-msg">데이터 불러오는 중...</div>
-      <div style="overflow-x:auto">
-        <table id="table-new" class="hidden">
-          <thead><tr><th>소속/이름</th><th>최고점수</th><th>재시험여부</th><th>최근응시</th><th>관리</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+    <div id="admin-loading" class="loading-msg">데이터 불러오는 중...</div>
+    <div style="overflow-x:auto">
+      <table id="admin-res-table" class="hidden">
+        <thead><tr><th>소속/이름</th><th>최고점수</th><th>재시험여부</th><th>최근응시</th><th>관리</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
-
-    <!-- 이전 기록 탭 -->
-    <div class="tab-panel" id="tab-old">
-      <div class="admin-tools">
-        <div>
-          <label style="font-size:13px;font-weight:700;margin-right:5px">정렬:</label>
-          <select id="admin-sort-old" style="padding:5px;border-radius:4px;border:1px solid #ccc" onchange="renderTable('old')">
-            <option value="dateDesc">최신순</option>
-            <option value="scoreDesc">최고점수 순</option>
-            <option value="nameAsc">이름순 (가나다)</option>
-          </select>
-        </div>
-        <button class="btn btn-sm" style="background:#6b7280;margin:0" onclick="downloadExcel('old')">엑셀 다운로드 (CSV)</button>
-      </div>
-      <div id="loading-old" class="loading-msg">데이터 불러오는 중...</div>
-      <div style="overflow-x:auto">
-        <table id="table-old" class="hidden">
-          <thead><tr><th>소속/이름</th><th>최고점수</th><th>재시험여부</th><th>최근응시</th><th>관리</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-
     <button class="btn btn-secondary" onclick="location.reload()" style="margin-top:20px">나가기</button>
   </div>
 </div>
@@ -245,14 +193,13 @@ const firebaseConfig = {
   appId: "1:73793345931:web:1944def28525c24bc2b78e"
 };
 
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-const auth = getAuth(app);
+const app      = initializeApp(firebaseConfig);
+const db       = getFirestore(app);
+const auth     = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// ★ 새 기록은 V6, 이전 기록은 V5 (읽기 전용)
-const COL_NEW = "examResultsV6";
-const COL_OLD = "examResultsV5";
+// ★ 저장/읽기 모두 V5 하나로 통합
+const COL = "examResultsV5";
 
 const bibleData = [
   {id:1,title:"계 1:1~3",verses:[{n:"1",t:"예수 그리스도의 계시라 이는 하나님이 그에게 주사 반드시 속히 될 일을 그 종들에게 보이시려고 그 천사를 그 종 요한에게 보내어 지시하신 것이라"},{n:"2",t:"요한은 하나님의 말씀과 예수 그리스도의 증거 곧 자기의 본 것을 다 증거하였느니라"},{n:"3",t:"이 예언의 말씀을 읽는 자와 듣는 자들과 그 가운데 기록한 것을 지키는 자들이 복이 있나니 때가 가까움이라"}]},
@@ -267,42 +214,13 @@ const bibleData = [
   {id:10,title:"계 22:18~19",verses:[{n:"18",t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"},{n:"19",t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}
 ];
 
-let examSettings = { isOpen: true, selectedIds: [1,2,3,4,5,6,7,8,9,10] };
-let currentQuestions = [];
-let isPracticeMode = false;
+let examSettings      = { isOpen:true, selectedIds:[1,2,3,4,5,6,7,8,9,10] };
+let currentQuestions  = [];
+let isPracticeMode    = false;
+let groupedAdminResults = [];
 
-// new / old 각각 별도 그룹 저장
-let groupedNew = [];
-let groupedOld = [];
-// 모달에서 삭제할 때 어느 컬렉션인지 기억
-let modalCollection = COL_NEW;
-
-// ─── 탭 전환 ──────────────────────────────────────────────────
-window.switchTab = (which) => {
-  ['new','old'].forEach(t => {
-    document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === which);
-    document.getElementById(`tab-${t}`).classList.toggle('active', t === which);
-  });
-};
-
-// ─── 채점 로직 ────────────────────────────────────────────────
-function calculateScore(userAns, correctAns) {
-  let u = userAns.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g,'');
-  let c = correctAns.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g,'');
-  return (u === c && u.length > 0) ? 100 : 0;
-}
-
-function renderDiff(userAns, correctAns) {
-  if (!userAns) return '<span style="color:#999;">(미입력)</span>';
-  if (typeof Diff === 'undefined') return userAns;
-  const re = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
-  let diffs = Diff.diffChars(correctAns.replace(re,''), userAns.replace(re,''));
-  return diffs.map(p => {
-    if (p.added)   return `<span style="color:var(--error);text-decoration:underline;">${p.value}</span>`;
-    if (p.removed) return `<span style="background:#fca5a5;color:#7f1d1d;text-decoration:line-through;">${p.value}</span>`;
-    return `<span style="color:var(--correct-blue);font-weight:700;">${p.value}</span>`;
-  }).join('');
-}
+// ─── 헬퍼 ────────────────────────────────────────────────────
+function el(id){ return document.getElementById(id); }
 
 function toUnixSeconds(ts) {
   if (!ts) return 0;
@@ -314,107 +232,145 @@ function toUnixSeconds(ts) {
   return isNaN(p) ? 0 : Math.floor(p/1000);
 }
 
+function calculateScore(userAns, correctAns) {
+  const re = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
+  const u = userAns.replace(re,'');
+  const c = correctAns.replace(re,'');
+  return (u === c && u.length > 0) ? 100 : 0;
+}
+
+function renderDiff(userAns, correctAns) {
+  if (!userAns) return '<span style="color:#999;">(미입력)</span>';
+  if (typeof Diff === 'undefined') return userAns;
+  const re = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
+  return Diff.diffChars(correctAns.replace(re,''), userAns.replace(re,'')).map(p => {
+    if (p.added)   return `<span style="color:var(--error);text-decoration:underline;">${p.value}</span>`;
+    if (p.removed) return `<span style="background:#fca5a5;color:#7f1d1d;text-decoration:line-through;">${p.value}</span>`;
+    return `<span style="color:var(--correct-blue);font-weight:700;">${p.value}</span>`;
+  }).join('');
+}
+
+// details 필드가 없거나 구형 포맷일 때 표시용 텍스트를 만드는 함수
+function renderOldFormatDetail(att) {
+  // V5 구형 데이터: details 배열이 없는 경우 score 만 있는 경우
+  if (!att.details || att.details.length === 0) {
+    return `<p style="color:#888;font-size:14px;">상세 답안 데이터가 없습니다. (점수: ${att.score}점)</p>`;
+  }
+  let html = '';
+  att.details.forEach(d => {
+    // correct / user 필드가 없는 구형 레코드 방어
+    const correct = d.correct || d.정답 || '';
+    const user    = d.user    || d.작성 || '';
+    const acc     = typeof d.acc === 'number' ? d.acc : (d.정확도 || 0);
+    const title   = d.title   || d.제목 || '';
+    const bc      = acc === 100 ? 'var(--success)' : 'var(--error)';
+    html += `<div style="margin-bottom:15px;border:1px solid #ddd;padding:15px;border-radius:8px;">
+      <strong style="color:var(--primary);">${title}</strong>
+      <span style="color:#fff;background:${bc};padding:2px 6px;border-radius:4px;font-size:12px;font-weight:bold;margin-left:5px;">${acc}%</span>
+      <div style="margin-top:10px;font-size:13px;">
+        <strong style="color:#666;">[제출 답안]</strong>
+        <div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">${renderDiff(user, correct)}</div>
+      </div>
+      <div style="margin-top:8px;font-size:13px;">
+        <strong style="color:#10b981;">[정답]</strong>
+        <div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">${correct || '(정답 데이터 없음)'}</div>
+      </div>
+    </div>`;
+  });
+  return html;
+}
+
 // ─── 초기 로드 ────────────────────────────────────────────────
 window.onload = async () => {
   try {
-    let snap = await getDoc(doc(db, "settings", "examV5"));
+    const snap = await getDoc(doc(db, "settings", "examV5"));
     if (snap.exists()) examSettings = snap.data();
     if (!examSettings.isOpen) {
-      document.getElementById("btn-exam").classList.add("hidden");
-      document.getElementById("msg-closed").classList.remove("hidden");
+      el("btn-exam").classList.add("hidden");
+      el("msg-closed").classList.remove("hidden");
     }
   } catch(e) { console.error("설정 로딩 실패:", e); }
 };
 
 function showScreen(id) {
   ["screen-home","screen-practice-setup","screen-exam","screen-result","screen-admin-auth","screen-admin"]
-    .forEach(s => document.getElementById(s).classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
+    .forEach(s => el(s).classList.add("hidden"));
+  el(id).classList.remove("hidden");
   window.scrollTo(0,0);
 }
 
 // ─── 시험 시작 ────────────────────────────────────────────────
 window.checkStart = (practice) => {
-  let region = document.getElementById("in-region").value.trim();
-  let dept   = document.getElementById("in-dept").value.trim();
-  let role   = document.getElementById("in-role").value.trim();
-  let name   = document.getElementById("in-name").value.trim();
-
+  const region = el("in-region").value.trim();
+  const dept   = el("in-dept").value.trim();
+  const role   = el("in-role").value.trim();
+  const name   = el("in-name").value.trim();
   if (region==="49"&&dept==="49"&&role==="49"&&name==="49") return showScreen("screen-admin-auth");
   if (!practice && (!region||!dept||!role||!name)) return alert("모든 인적사항을 입력해주세요.");
-
   isPracticeMode = practice;
   startExam();
 };
 
 window.openPracticeSetup = () => {
-  let html = '';
-  bibleData.forEach(b => html += `<label style="display:block;margin-bottom:5px;"><input type="checkbox" class="p-cb" value="${b.id}" checked> ${b.title}</label>`);
-  document.getElementById("practice-list").innerHTML = html;
+  el("practice-list").innerHTML = bibleData.map(b =>
+    `<label style="display:block;margin-bottom:5px;"><input type="checkbox" class="p-cb" value="${b.id}" checked> ${b.title}</label>`
+  ).join('');
   showScreen("screen-practice-setup");
 };
 
 window.retakeExam = () => startExam();
 
 function startExam() {
-  let isChunk = isPracticeMode ? (document.getElementById("practice-type").value==='chunk') : (document.getElementById("in-type").value==='chunk');
-  let order   = isPracticeMode ? document.getElementById("practice-order").value : document.getElementById("in-order").value;
-  let ids     = isPracticeMode
+  const isChunk = isPracticeMode ? (el("practice-type").value==='chunk') : (el("in-type").value==='chunk');
+  const order   = isPracticeMode ? el("practice-order").value : el("in-order").value;
+  const ids     = isPracticeMode
     ? Array.from(document.querySelectorAll(".p-cb:checked")).map(c=>parseInt(c.value))
     : examSettings.selectedIds;
-
-  if (isPracticeMode && ids.length===0) return alert("최소 하나 이상 선택해주세요.");
+  if (isPracticeMode && !ids.length) return alert("최소 하나 이상 선택해주세요.");
 
   let raw = bibleData.filter(b=>ids.includes(b.id)).map(b=>({id:b.id,title:b.title,verses:b.verses}));
   currentQuestions = order==='random' ? raw.sort(()=>Math.random()-.5) : raw;
 
-  let html = '';
-  currentQuestions.forEach((q,i) => {
-    html += `<div class="question-box"><div class="q-title">Q${i+1}. ${q.title}</div>`;
-    if (isChunk) {
-      html += `<textarea class="ans chunk-ans" data-qi="${i}" placeholder="이곳에 말씀 전체를 통으로 작성하세요..."></textarea>`;
-    } else {
-      q.verses.forEach((v,vi) => {
-        html += `<div><span class="verse-label">${v.n}절</span><textarea class="ans verse-ans" data-qi="${i}" data-vi="${vi}" placeholder="${v.n}절 말씀을 작성하세요..."></textarea></div>`;
-      });
-    }
-    html += `</div>`;
-  });
+  el("question-container").innerHTML = currentQuestions.map((q,i) => {
+    let inner = isChunk
+      ? `<textarea class="ans chunk-ans" data-qi="${i}" placeholder="이곳에 말씀 전체를 통으로 작성하세요..."></textarea>`
+      : q.verses.map((v,vi) =>
+          `<div><span class="verse-label">${v.n}절</span>
+          <textarea class="ans verse-ans" data-qi="${i}" data-vi="${vi}" placeholder="${v.n}절 말씀을 작성하세요..."></textarea></div>`
+        ).join('');
+    return `<div class="question-box"><div class="q-title">Q${i+1}. ${q.title}</div>${inner}</div>`;
+  }).join('');
 
-  document.getElementById("question-container").innerHTML = html;
-  document.getElementById("exam-title").innerText = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
-  document.getElementById("exam-info").innerText = `${document.getElementById("in-region").value} ${document.getElementById("in-dept").value} ${document.getElementById("in-role").value} ${document.getElementById("in-name").value}`;
+  el("exam-title").innerText  = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
+  el("exam-info").innerText   = `${el("in-region").value} ${el("in-dept").value} ${el("in-role").value} ${el("in-name").value}`;
   showScreen("screen-exam");
 }
 
 // ─── 제출 & 채점 ──────────────────────────────────────────────
 window.submitExam = async () => {
   if (!confirm("제출하시겠습니까?")) return;
-
-  let isChunk = isPracticeMode ? (document.getElementById("practice-type").value==='chunk') : (document.getElementById("in-type").value==='chunk');
+  const isChunk = isPracticeMode ? (el("practice-type").value==='chunk') : (el("in-type").value==='chunk');
   let total=0, detailsHtml='', dbDetails=[];
 
   currentQuestions.forEach((q,i) => {
     if (isChunk) {
-      let u = document.querySelector(`.chunk-ans[data-qi="${i}"]`).value.trim();
-      let c = q.verses.map(v=>v.t).join(" ");
-      let s = calculateScore(u,c);
+      const u = document.querySelector(`.chunk-ans[data-qi="${i}"]`).value.trim();
+      const c = q.verses.map(v=>v.t).join(" ");
+      const s = calculateScore(u,c);
       total += s;
-      let bc = s===100?'acc-high':'acc-low';
       detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
-        <div class="q-title">${q.title} <span class="acc-badge ${bc}">정확도 ${s}%</span></div>
-        <div style="font-size:14px;margin-bottom:12px;"><strong style="color:#555;">[나의 답안]</strong><br>
+        <div class="q-title">${q.title} <span class="acc-badge ${s===100?'acc-high':'acc-low'}">정확도 ${s}%</span></div>
+        <div style="font-size:14px;margin-bottom:10px;"><strong style="color:#555;">[나의 답안]</strong>
         <div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">${renderDiff(u,c)}</div></div>
-        <div style="font-size:14px;"><strong style="color:#10b981;">[정답]</strong><br>
+        <div style="font-size:14px;"><strong style="color:#10b981;">[정답]</strong>
         <div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">${c}</div></div>
       </div>`;
-      dbDetails.push({title:q.title,user:u,correct:c,acc:s});
-
+      dbDetails.push({title:q.title, user:u, correct:c, acc:s});
     } else {
       let vS=[], vH='', uArr=[], cArr=[];
       q.verses.forEach((v,vi) => {
-        let u = document.querySelector(`.verse-ans[data-qi="${i}"][data-vi="${vi}"]`).value.trim();
-        let s = calculateScore(u,v.t);
+        const u = document.querySelector(`.verse-ans[data-qi="${i}"][data-vi="${vi}"]`).value.trim();
+        const s = calculateScore(u,v.t);
         vS.push(s);
         vH += `<div style="margin-top:8px;padding:10px;border-left:3px solid var(--secondary);background:#f8fafc;margin-bottom:8px;">
           <div style="font-weight:bold;font-size:13px;margin-bottom:4px;">${v.n}절 (${s===100?'정답':'오답'})</div>
@@ -424,37 +380,32 @@ window.submitExam = async () => {
         uArr.push(`(${v.n}절) ${u}`);
         cArr.push(`(${v.n}절) ${v.t}`);
       });
-      let qs = Math.round(vS.reduce((a,b)=>a+b,0)/vS.length);
+      const qs = Math.round(vS.reduce((a,b)=>a+b,0)/vS.length);
       total += qs;
-      let bc = qs===100?'acc-high':'acc-low';
       detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
-        <div class="q-title">${q.title} <span class="acc-badge ${bc}">정확도 ${qs}%</span></div>${vH}</div>`;
-      dbDetails.push({title:q.title,user:uArr.join("  "),correct:cArr.join("  "),acc:qs});
+        <div class="q-title">${q.title} <span class="acc-badge ${qs===100?'acc-high':'acc-low'}">정확도 ${qs}%</span></div>${vH}</div>`;
+      dbDetails.push({title:q.title, user:uArr.join("  "), correct:cArr.join("  "), acc:qs});
     }
   });
 
-  let avg = Math.round(total/currentQuestions.length);
-  document.getElementById("res-score").innerText = `${avg}점`;
-  document.getElementById("res-acc").innerText = `평균 정확도: ${avg}%`;
-  document.getElementById("res-user").innerText = `${document.getElementById("in-region").value} ${document.getElementById("in-dept").value} ${document.getElementById("in-role").value} ${document.getElementById("in-name").value}`;
-  document.getElementById("result-details").innerHTML = detailsHtml;
+  const avg = Math.round(total/currentQuestions.length);
+  el("res-score").innerText = `${avg}점`;
+  el("res-acc").innerText   = `평균 정확도: ${avg}%`;
+  el("res-user").innerText  = `${el("in-region").value} ${el("in-dept").value} ${el("in-role").value} ${el("in-name").value}`;
+  el("result-details").innerHTML = detailsHtml;
 
   if (!isPracticeMode) {
     try {
-      // ★ 새 응시는 V6 컬렉션에 저장
-      await addDoc(collection(db, COL_NEW), {
-        region: document.getElementById("in-region").value,
-        dept:   document.getElementById("in-dept").value,
-        role:   document.getElementById("in-role").value,
-        name:   document.getElementById("in-name").value,
+      await addDoc(collection(db, COL), {
+        region: el("in-region").value,
+        dept:   el("in-dept").value,
+        role:   el("in-role").value,
+        name:   el("in-name").value,
         score: avg, avgAcc: avg,
         details: dbDetails,
         timestamp: new Date()
       });
-    } catch(e) {
-      console.error(e);
-      alert("DB 저장 중 오류가 발생했습니다.");
-    }
+    } catch(e) { console.error(e); alert("DB 저장 중 오류가 발생했습니다."); }
   }
   showScreen("screen-result");
 };
@@ -462,8 +413,9 @@ window.submitExam = async () => {
 // ─── 관리자 로그인 ─────────────────────────────────────────────
 window.adminLogin = async () => {
   try {
-    let res = await signInWithPopup(auth, provider);
+    const res = await signInWithPopup(auth, provider);
     if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
+      // 토큰 완전히 반영될 때까지 대기
       await res.user.getIdToken(true);
       await new Promise(r => setTimeout(r, 800));
       showScreen("screen-admin");
@@ -476,90 +428,81 @@ window.adminLogin = async () => {
   } catch(e) { alert("로그인 실패"); console.error(e); }
 };
 
-// ─── 컬렉션 → 그룹 변환 공통 함수 ───────────────────────────
-async function fetchGrouped(colName, loadingId, tableId) {
-  document.getElementById(loadingId).innerText = "데이터 불러오는 중...";
-  document.getElementById(loadingId).classList.remove("hidden");
-  document.getElementById(tableId).classList.add("hidden");
+// ─── 관리자 데이터 로딩 ───────────────────────────────────────
+async function loadAdminData() {
+  // 설정 UI 세팅
+  el("set-isopen").value = String(examSettings.isOpen);
+  el("admin-chunk-list").innerHTML = bibleData.map(b => {
+    const chk = (examSettings.selectedIds||[]).includes(b.id) ? 'checked' : '';
+    return `<label style="display:inline-block;margin-right:15px;margin-bottom:5px;">
+      <input type="checkbox" class="a-cb" value="${b.id}" ${chk}> ${b.title}</label>`;
+  }).join('');
+
+  el("admin-loading").innerText = "데이터 불러오는 중...";
+  el("admin-loading").classList.remove("hidden");
+  el("admin-res-table").classList.add("hidden");
 
   try {
-    const snap = await getDocs(collection(db, colName));
-    console.log(`[${colName}] ${snap.size}개 문서 로드됨`);
+    const snap = await getDocs(collection(db, COL));
+    console.log(`[Admin] ${COL} → ${snap.size}개 문서 로드됨`);
 
-    if (snap.empty) {
-      document.getElementById(loadingId).innerText = "응시 기록이 없습니다.";
-      document.getElementById(tableId).classList.remove("hidden");
-      document.getElementById(tableId).querySelector("tbody").innerHTML = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
-      return [];
-    }
-
-    let groups = {};
+    const groups = {};
     snap.forEach(ds => {
       try {
-        let d = { ...ds.data(), id: ds.id };
-        d.region = d.region||''; d.dept = d.dept||''; d.role = d.role||''; d.name = d.name||'(이름없음)';
-        d.score = typeof d.score==='number' ? d.score : 0;
-        let key = `${d.region}_${d.dept}_${d.role}_${d.name}`;
+        const d = { ...ds.data(), id: ds.id };
+        // 필드 기본값 보정 (구형 레코드 대응)
+        d.region = d.region || d.지역 || '';
+        d.dept   = d.dept   || d.부서 || '';
+        d.role   = d.role   || d.직책 || '';
+        d.name   = d.name   || d.이름 || d.성함 || '(이름없음)';
+        d.score  = typeof d.score === 'number' ? d.score
+                  : (typeof d.avgAcc === 'number' ? d.avgAcc : 0);
+
+        const key = `${d.region}__${d.dept}__${d.role}__${d.name}`;
         if (!groups[key]) groups[key] = { key, info:d, attempts:[] };
         groups[key].attempts.push(d);
-      } catch(e) { console.warn("파싱 오류:", ds.id, e); }
+      } catch(e) { console.warn("문서 파싱 오류:", ds.id, e); }
     });
 
-    let result = Object.values(groups).map(g => {
-      g.maxScore   = Math.max(...g.attempts.map(a=>a.score));
-      g.latestTime = Math.max(...g.attempts.map(a=>toUnixSeconds(a.timestamp)));
+    groupedAdminResults = Object.values(groups).map(g => {
+      g.maxScore   = Math.max(...g.attempts.map(a => a.score));
+      g.latestTime = Math.max(...g.attempts.map(a => toUnixSeconds(a.timestamp)));
       return g;
     });
 
-    document.getElementById(loadingId).classList.add("hidden");
-    document.getElementById(tableId).classList.remove("hidden");
-    return result;
+    console.log(`[Admin] 그룹화된 응시자: ${groupedAdminResults.length}명`);
+
+    el("admin-loading").classList.add("hidden");
+    el("admin-res-table").classList.remove("hidden");
+    renderAdminTable();
 
   } catch(e) {
-    console.error(`[${colName}] 로딩 실패:`, e);
-    document.getElementById(loadingId).innerText = `로딩 실패: ${e.message}`;
-    return [];
+    console.error("[Admin] 로딩 실패:", e);
+    el("admin-loading").innerText = `⚠ 로딩 실패: ${e.message}`;
   }
 }
 
-async function loadAdminData() {
-  // 설정 UI
-  document.getElementById("set-isopen").value = String(examSettings.isOpen);
-  let ch = '';
-  bibleData.forEach(b => {
-    let chk = (examSettings.selectedIds||[]).includes(b.id)?'checked':'';
-    ch += `<label style="display:inline-block;margin-right:15px;margin-bottom:5px;"><input type="checkbox" class="a-cb" value="${b.id}" ${chk}> ${b.title}</label>`;
-  });
-  document.getElementById("admin-chunk-list").innerHTML = ch;
-
-  // 두 컬렉션 병렬 로드
-  [groupedNew, groupedOld] = await Promise.all([
-    fetchGrouped(COL_NEW, "loading-new", "table-new"),
-    fetchGrouped(COL_OLD, "loading-old", "table-old")
-  ]);
-
-  renderTable('new');
-  renderTable('old');
-}
-
-// ─── 테이블 렌더링 (new / old 공용) ──────────────────────────
-window.renderTable = (which) => {
-  let list   = which==='new' ? [...groupedNew] : [...groupedOld];
-  let sortId = which==='new' ? "admin-sort-new" : "admin-sort-old";
-  let tableId = which==='new' ? "table-new" : "table-old";
-  let sort = document.getElementById(sortId).value;
-
+// ─── 테이블 렌더링 ────────────────────────────────────────────
+window.renderAdminTable = () => {
+  const sort = el("admin-sort").value;
+  let list = [...groupedAdminResults];
   if (sort==='scoreDesc') list.sort((a,b)=>b.maxScore-a.maxScore);
   else if (sort==='nameAsc') list.sort((a,b)=>a.info.name.localeCompare(b.info.name,'ko'));
   else list.sort((a,b)=>b.latestTime-a.latestTime);
 
-  let html = '';
-  list.forEach(g => {
-    let date = g.latestTime>0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '날짜없음';
-    let retake = g.attempts.length>1
+  const tbody = el("admin-res-table").querySelector("tbody");
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(g => {
+    const date   = g.latestTime > 0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '날짜없음';
+    const retake = g.attempts.length > 1
       ? `<span style="color:var(--error);font-weight:bold;">O (${g.attempts.length}회)</span>`
       : `<span style="color:#999;">X</span>`;
-    html += `<tr>
+    // key에 ' 가 포함될 수 있으므로 btoa 인코딩으로 전달
+    const safeKey = btoa(encodeURIComponent(g.key));
+    return `<tr>
       <td style="text-align:left;">
         <div style="font-size:11px;color:#888;">${g.info.region} / ${g.info.dept} / ${g.info.role}</div>
         <strong>${g.info.name}</strong>
@@ -567,98 +510,78 @@ window.renderTable = (which) => {
       <td><strong style="color:var(--primary);font-size:16px;">${g.maxScore}점</strong></td>
       <td>${retake}</td>
       <td style="font-size:12px;color:#666;">${date}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="showUserModal('${which}','${g.key}')">상세보기</button></td>
+      <td><button class="btn btn-sm btn-outline" onclick="showUserModal('${safeKey}')">상세보기</button></td>
     </tr>`;
-  });
-  if (!html) html = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
-  document.getElementById(tableId).querySelector("tbody").innerHTML = html;
+  }).join('');
 };
+
+function findGroup(safeKey) {
+  const key = decodeURIComponent(atob(safeKey));
+  return groupedAdminResults.find(g => g.key === key);
+}
 
 // ─── 상세 모달 ────────────────────────────────────────────────
-window.showUserModal = (which, key) => {
-  let group = (which==='new' ? groupedNew : groupedOld).find(g=>g.key===key);
+window.showUserModal = (safeKey) => {
+  const group = findGroup(safeKey);
   if (!group) return;
-  modalCollection = which==='new' ? COL_NEW : COL_OLD;
 
-  document.getElementById("modal-title").innerText = `[${group.info.name}] 님의 응시 내역 (최고: ${group.maxScore}점)`;
+  el("modal-title").innerText = `[${group.info.name}] 님의 응시 내역 (최고: ${group.maxScore}점)`;
+  const nav = group.attempts.map((a,i) =>
+    `<button class="btn btn-sm btn-secondary" style="margin:0;" onclick="renderAttemptDetail('${safeKey}',${i})">${i+1}회차 (${a.score}점)</button>`
+  ).join('');
 
-  let nav = '<div style="margin-bottom:15px;display:flex;gap:5px;flex-wrap:wrap;">';
-  group.attempts.forEach((a,i) => {
-    nav += `<button class="btn btn-sm btn-secondary" style="margin:0;" onclick="renderAttemptDetail('${which}','${key}',${i})">${i+1}회차 (${a.score}점)</button>`;
-  });
-  nav += '</div>';
-
-  document.getElementById("modal-body").innerHTML = nav + `<div id="attempt-detail-container"></div>`;
-  document.getElementById("modal-detail").classList.remove("hidden");
-  renderAttemptDetail(which, key, group.attempts.length-1);
+  el("modal-body").innerHTML =
+    `<div style="margin-bottom:15px;display:flex;gap:5px;flex-wrap:wrap;">${nav}</div>
+     <div id="attempt-detail-container"></div>`;
+  el("modal-detail").classList.remove("hidden");
+  renderAttemptDetail(safeKey, group.attempts.length - 1);
 };
 
-window.renderAttemptDetail = (which, key, idx) => {
-  let group = (which==='new' ? groupedNew : groupedOld).find(g=>g.key===key);
-  let att = group.attempts[idx];
+window.renderAttemptDetail = (safeKey, idx) => {
+  const group = findGroup(safeKey);
+  const att   = group.attempts[idx];
 
-  let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:#f1f5f9;padding:10px;border-radius:8px;">
-    <strong style="font-size:16px;">${idx+1}회차 답안 (점수: ${att.score}점)</strong>
-    <button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${which}','${key}','${att.id}')">이 회차 삭제</button>
-  </div>`;
+  const detailHtml = renderOldFormatDetail(att);
 
-  if (!att.details||att.details.length===0) {
-    html += '<p>상세 데이터가 없습니다.</p>';
-  } else {
-    att.details.forEach(d => {
-      let bc = d.acc===100?'var(--success)':'var(--error)';
-      html += `<div style="margin-bottom:15px;border:1px solid #ddd;padding:15px;border-radius:8px;">
-        <strong style="color:var(--primary);">${d.title}</strong>
-        <span style="color:#fff;background:${bc};padding:2px 6px;border-radius:4px;font-size:12px;font-weight:bold;margin-left:5px;">${d.acc}%</span>
-        <div style="margin-top:12px;font-size:13px;">
-          <strong style="color:#666;">[제출 답안]</strong>
-          <div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">${renderDiff(d.user,d.correct)}</div>
-        </div>
-        <div style="margin-top:10px;font-size:13px;">
-          <strong style="color:#10b981;">[정답]</strong>
-          <div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">${d.correct}</div>
-        </div>
-      </div>`;
-    });
-  }
-  document.getElementById("attempt-detail-container").innerHTML = html;
+  el("attempt-detail-container").innerHTML =
+    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+       background:#f1f5f9;padding:10px;border-radius:8px;">
+      <strong style="font-size:16px;">${idx+1}회차 (점수: ${att.score}점)</strong>
+      <button class="btn btn-sm btn-danger" style="margin:0;"
+        onclick="deleteAttempt('${safeKey}','${att.id}')">이 회차 삭제</button>
+    </div>${detailHtml}`;
 };
 
-window.deleteAttempt = async (which, key, docId) => {
+window.deleteAttempt = async (safeKey, docId) => {
   if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?")) return;
-  let col = which==='new' ? COL_NEW : COL_OLD;
   try {
-    await deleteDoc(doc(db, col, docId));
+    await deleteDoc(doc(db, COL, docId));
     alert("삭제되었습니다.");
-    document.getElementById("modal-detail").classList.add("hidden");
+    el("modal-detail").classList.add("hidden");
     loadAdminData();
   } catch(e) { alert("삭제 실패"); console.error(e); }
 };
 
 // ─── CSV 다운로드 ──────────────────────────────────────────────
-window.downloadExcel = (which) => {
-  let list = which==='new' ? groupedNew : groupedOld;
-  if (!list.length) return alert("다운로드할 데이터가 없습니다.");
+window.downloadExcel = () => {
+  if (!groupedAdminResults.length) return alert("다운로드할 데이터가 없습니다.");
   let csv = "\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
-  list.forEach(g => {
-    let date = g.latestTime>0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '';
-    let row = [g.info.region,g.info.dept,g.info.role,g.info.name,g.maxScore,g.attempts.length,date]
-      .map(v=>`"${String(v).replace(/"/g,'""')}"`);
-    csv += row.join(",")+"\n";
+  groupedAdminResults.forEach(g => {
+    const date = g.latestTime > 0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '';
+    csv += [g.info.region,g.info.dept,g.info.role,g.info.name,g.maxScore,g.attempts.length,date]
+      .map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",") + "\n";
   });
-  let label = which==='new' ? 'V6새기록' : 'V5이전기록';
-  let blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  let a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `사명자_실력점검_${label}_${new Date().toISOString().slice(0,10)}.csv`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
+  a.download = `사명자_실력점검_${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 };
 
 // ─── 설정 저장 ────────────────────────────────────────────────
 window.saveAdminSettings = async () => {
   try {
-    let isOpen = document.getElementById("set-isopen").value==="true";
-    let ids = Array.from(document.querySelectorAll(".a-cb:checked")).map(c=>parseInt(c.value));
+    const isOpen = el("set-isopen").value === "true";
+    const ids    = Array.from(document.querySelectorAll(".a-cb:checked")).map(c=>parseInt(c.value));
     if (!ids.length) return alert("최소 하나 이상의 성구를 선택해주세요.");
     await setDoc(doc(db,"settings","examV5"),{isOpen,selectedIds:ids});
     alert("설정이 저장되었습니다.");
