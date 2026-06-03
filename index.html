@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>실력 점검 시험 시스템</title>
 
-<!-- 분리하신 외부 성경 데이터 파일 불러오기 -->
 <script src="data.js"></script>
 
-<!-- 문장 비교를 위한 jsdiff 라이브러리 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsdiff/5.1.0/diff.min.js"></script>
 <style>
 :root{--primary:#1e3a8a;--secondary:#fbbf24;--bg-color:#f3f4f6;--card-bg:#ffffff;--text-main:#333333;--success:#10b981;--error:#ef4444;--correct-blue:#2563eb}
@@ -45,13 +43,13 @@ th{background:#f1f5f9;font-weight:700}
 .close-modal{position:absolute;top:15px;right:20px;font-size:24px;cursor:pointer;color:#888;border:none;background:0 0;font-weight:700}
 .diff-correct{color:var(--correct-blue);font-weight:700}
 .diff-error{color:var(--error);font-weight:700}
+/* 자동 줄바꿈 속성 완벽 반영 파트 */
 .result-content-box{padding:12px;border-radius:8px;margin-top:5px;line-height:1.6;font-size:15px;word-break:break-all;overflow-wrap:break-word}
 .verse-label {font-size: 14px; font-weight: 700; color: var(--primary); display: inline-block; margin-top: 5px; margin-bottom: 2px;}
 </style>
 </head>
 <body>
 <div class="container">
-    <!-- 화면: 홈/로그인 -->
     <div id="screen-home">
         <h2 style="background:var(--secondary);padding:10px;border-radius:8px">사명자 실력 점검 시험</h2>
         <div id="msg-closed" class="hidden" style="color:var(--error);text-align:center;margin:10px;font-weight:700">※ 현재 본 시험 기간이 아닙니다.</div>
@@ -81,7 +79,6 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn btn-outline" onclick="openPracticeSetup()">연습모드 (기록 안됨)</button>
     </div>
 
-    <!-- 화면: 연습모드 설정 -->
     <div id="screen-practice-setup" class="hidden">
         <h2>연습모드 설정</h2>
         <div class="input-group"><label>연습할 성구 선택</label><div class="tree-view" id="practice-list"></div></div>
@@ -105,7 +102,6 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn btn-secondary" onclick="location.reload()">취소 및 돌아가기</button>
     </div>
 
-    <!-- 화면: 시험 중 -->
     <div id="screen-exam" class="hidden">
         <h2 id="exam-title">시험 응시</h2>
         <div id="exam-info" style="text-align:right;font-size:13px;color:#666;margin-bottom:10px;font-weight:700"></div>
@@ -113,7 +109,6 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn" onclick="submitExam()" style="background:var(--success);font-size:18px;margin-top:30px">답안 제출 및 채점하기</button>
     </div>
 
-    <!-- 화면: 결과 -->
     <div id="screen-result" class="hidden">
         <h2>채점 결과</h2>
         <div class="score-board">
@@ -128,7 +123,6 @@ th{background:#f1f5f9;font-weight:700}
         </div>
     </div>
 
-    <!-- 화면: 관리자 로그인 -->
     <div id="screen-admin-auth" class="hidden" style="text-align:center;padding:40px 0">
         <h2>관리자 인증</h2>
         <p style="color:#666">보안을 위해 관리자 구글 계정으로 로그인해주세요.</p>
@@ -136,7 +130,6 @@ th{background:#f1f5f9;font-weight:700}
         <button class="btn btn-secondary" onclick="location.reload()" style="width:auto">취소</button>
     </div>
 
-    <!-- 화면: 관리자 패널 -->
     <div id="screen-admin" class="hidden">
         <h2>관리자 시스템</h2>
         <div class="input-group" style="background:#f9fafb;padding:15px;border-radius:8px;border:1px solid #ddd">
@@ -174,7 +167,6 @@ th{background:#f1f5f9;font-weight:700}
     </div>
 </div>
 
-<!-- 상세 모달 -->
 <div id="modal-detail" class="modal-overlay hidden">
     <div class="modal-content">
         <button class="close-modal" onclick="$('modal-detail').classList.add('hidden')">&times;</button>
@@ -232,29 +224,37 @@ function calculateScore(userAns, correctAns) {
     return 0;
 }
 
+// =========================================================================
+// 🛠️ 오답 단어(어절) 단위 기반 정밀 하이라이팅 매핑 로직
+// =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
     if (typeof Diff === 'undefined') return userAns;
 
     const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
-    let uClean = userAns.replace(cleanRegex, '');
-    let cClean = correctAns.replace(cleanRegex, '');
 
-    let diffs = Diff.diffChars(cClean, uClean);
+    // 공백 및 조사 노이즈를 제어하기 위해 단어별로 정밀 압축 배열 생성
+    let uWords = userAns.split(/\s+/).map(w => w.replace(cleanRegex, '')).filter(w => w.length > 0);
+    let cWords = correctAns.split(/\s+/).map(w => w.replace(cleanRegex, '')).filter(w => w.length > 0);
+
+    let diffs = Diff.diffArrays(cWords, uWords);
     let html = '';
 
     diffs.forEach(part => {
-        let text = part.value;
+        let text = part.value.join(' ');
+        if (!text) return;
+
         if (part.added) {
-            html += `<span class="diff-error" style="color:var(--error); text-decoration:underline;" title="틀린 글자 추가">${text}</span>`;
+            html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; margin: 0 2px;" title="틀린 단어">${text}</span> `;
         } else if (part.removed) {
-            html += `<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through;" title="빠트린 글자">${text}</span>`;
+            html += `<span class="diff-error" style="background-color:#fca5a5; color:#7f1d1d; text-decoration:line-through; margin: 0 2px;" title="빠진 단어">${text}</span> `;
         } else {
-            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${text}</span>`;
+            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700; margin: 0 2px;">${text}</span> `;
         }
     });
-    return html;
+    
+    return html.trim();
 }
 
 window.onload = async () => {
@@ -389,7 +389,7 @@ window.submitExam = async () => {
             let vDetailsHtml = '';
             let combinedUserAns = [];
             let combinedCorrectText = [];
-            let chunkVerseDetails = []; // 각 절별 순수 유저 입력값과 정답 값을 원본 보관하기 위한 배열
+            let chunkVerseDetails = []; 
 
             q.verses.forEach((v, vIdx) => {
                 let userVerseAns = document.querySelector(`.verse-ans[data-qi="${idx}"][data-vi="${vIdx}"]`).value.trim();
@@ -406,7 +406,6 @@ window.submitExam = async () => {
                 combinedUserAns.push(`(${v.n}절) ${userVerseAns}`);
                 combinedCorrectText.push(`(${v.n}절) ${v.t}`);
                 
-                // 상세 보기에 강제 랜더링하기 위한 절별 오리지널 정보 백업
                 chunkVerseDetails.push({ n: v.n, user: userVerseAns, correct: v.t });
             });
 
@@ -425,7 +424,7 @@ window.submitExam = async () => {
                 correct: combinedCorrectText.join("  "), 
                 acc: qScore,
                 isChunk: false,
-                verseDetails: chunkVerseDetails // 신규 백업 데이터 전송
+                verseDetails: chunkVerseDetails 
             });
         }
     });
@@ -568,9 +567,6 @@ window.showUserModal = (key) => {
     renderAttemptDetail(key, group.attempts.length - 1);
 };
 
-// =========================================================================
-// 🛠️ 핵심 수정 파트: 상세조회창(모달)에서도 빨간색/파란색 가독성 완벽 연동
-// =========================================================================
 window.renderAttemptDetail = (key, attIdx) => {
     let group = groupedAdminResults.find(g => g.key === key);
     let att = group.attempts[attIdx];
@@ -587,11 +583,10 @@ window.renderAttemptDetail = (key, attIdx) => {
             let acc = det.acc !== undefined ? det.acc : 0;
             let badgeColor = acc === 100 ? 'var(--success)' : 'var(--error)';
             
-            // 1. 새롭게 응시한 절별 분할 매핑 데이터가 백업되어 있는 경우 (제일 예쁘게 출력)
             if (det.verseDetails && Array.isArray(det.verseDetails)) {
                 let innerVersesHtml = '';
                 det.verseDetails.forEach(v => {
-                    let vDiffHtml = renderDiff(v.user, v.correct); // 강제로 컬러 칠하기
+                    let vDiffHtml = renderDiff(v.user, v.correct); 
                     innerVersesHtml += `<div style="margin-top: 8px; padding: 10px; border-left: 3px solid var(--secondary); background: #f8fafc; margin-bottom: 8px;">
                         <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${v.n}절</div>
                         <div style="font-size:13px; margin-bottom:4px;"><strong style="color:#666;">[작성]</strong> ${vDiffHtml}</div>
@@ -604,9 +599,7 @@ window.renderAttemptDetail = (key, attIdx) => {
                     ${innerVersesHtml}
                 </div>`;
             } 
-            // 2. 덩어리 쓰기 형태이거나 하위 호환 덩어리 텍스트 출력 파트
             else {
-                // 한 줄로 쭉 이어진 데이터(절 태그 제거용)도 순수 글자 기반으로 대조해서 컬러를 입혀줍니다.
                 let cleanUser = uAns.replace(/\(\d+절\)\s*/g, '');
                 let cleanCorrect = cAns.replace(/\(\d+절\)\s*/g, '');
                 let diffHtml = renderDiff(cleanUser, cleanCorrect);
