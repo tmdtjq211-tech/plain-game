@@ -144,9 +144,8 @@ th{background:#f1f5f9;font-weight:700}
       <div class="tree-view" id="admin-chunk-list"></div>
     </div>
     <button class="btn" onclick="saveAdminSettings()">기본 설정 저장</button>
-
     <hr style="margin:30px 0">
-    <h3>응시자 데이터 관리 (전체 통합)</h3>
+    <h3>응시자 데이터 관리</h3>
     <div class="admin-tools">
       <div>
         <label style="font-size:13px;font-weight:700;margin-right:5px">정렬:</label>
@@ -182,7 +181,7 @@ th{background:#f1f5f9;font-weight:700}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD90YkT77h64XOfz2U96G9S7Csd0OhEVvk",
@@ -198,7 +197,6 @@ const db       = getFirestore(app);
 const auth     = getAuth(app);
 const provider = new GoogleAuthProvider();
 
-// ★ 저장/읽기 모두 V5 하나로 통합
 const COL = "examResultsV5";
 
 const bibleData = [
@@ -214,12 +212,11 @@ const bibleData = [
   {id:10,title:"계 22:18~19",verses:[{n:"18",t:"내가 이 책의 예언의 말씀을 듣는 각인에게 증거하노니 만일 누구든지 이것들 외에 더하면 하나님이 이 책에 기록된 재앙들을 그에게 더하실 터이요"},{n:"19",t:"만일 누구든지 이 책의 예언의 말씀에서 제하여 버리면 하나님이 이 책에 기록된 생명나무와 및 거룩한 성에 참예함을 제하여 버리시리라"}]}
 ];
 
-let examSettings      = { isOpen:true, selectedIds:[1,2,3,4,5,6,7,8,9,10] };
-let currentQuestions  = [];
-let isPracticeMode    = false;
+let examSettings = { isOpen:true, selectedIds:[1,2,3,4,5,6,7,8,9,10] };
+let currentQuestions = [];
+let isPracticeMode = false;
 let groupedAdminResults = [];
 
-// ─── 헬퍼 ────────────────────────────────────────────────────
 function el(id){ return document.getElementById(id); }
 
 function toUnixSeconds(ts) {
@@ -228,63 +225,29 @@ function toUnixSeconds(ts) {
   if (typeof ts.toDate === 'function') return Math.floor(ts.toDate().getTime()/1000);
   if (ts instanceof Date) return Math.floor(ts.getTime()/1000);
   if (typeof ts === 'number') return ts > 1e10 ? Math.floor(ts/1000) : ts;
-  const p = Date.parse(ts);
-  return isNaN(p) ? 0 : Math.floor(p/1000);
+  const p = Date.parse(ts); return isNaN(p) ? 0 : Math.floor(p/1000);
 }
 
-function calculateScore(userAns, correctAns) {
-  const re = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
-  const u = userAns.replace(re,'');
-  const c = correctAns.replace(re,'');
-  return (u === c && u.length > 0) ? 100 : 0;
+function calculateScore(u, c) {
+  const re = /[\s\.,\?!'"0-9\(\)\[\]\|~\-><:&]/g;
+  const uc = u.replace(re,''), cc = c.replace(re,'');
+  return (uc === cc && uc.length > 0) ? 100 : 0;
 }
 
 function renderDiff(userAns, correctAns) {
   if (!userAns) return '<span style="color:#999;">(미입력)</span>';
   if (typeof Diff === 'undefined') return userAns;
-  const re = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
+  const re = /[\s\.,\?!'"0-9\(\)\[\]\|~\-><:&]/g;
   const uClean = userAns.replace(re,'');
   const cClean = correctAns.replace(re,'');
-  // 맞으면 원본(띄어쓰기 포함)을 파란색으로 그대로 표시
   if (uClean === cClean) {
     return '<span style="color:var(--correct-blue);font-weight:700;">' + userAns + '</span>';
   }
-  // 틀리면 공백 제거 버전으로 diff 표시
   return Diff.diffChars(cClean, uClean).map(p => {
     if (p.added)   return '<span style="color:var(--error);text-decoration:underline;">' + p.value + '</span>';
     if (p.removed) return '<span style="background:#fca5a5;color:#7f1d1d;text-decoration:line-through;">' + p.value + '</span>';
     return '<span style="color:var(--correct-blue);font-weight:700;">' + p.value + '</span>';
   }).join('');
-}
-
-// details 필드가 없거나 구형 포맷일 때 표시용 텍스트를 만드는 함수
-function renderOldFormatDetail(att) {
-  // V5 구형 데이터: details 배열이 없는 경우 score 만 있는 경우
-  if (!att.details || att.details.length === 0) {
-    return `<p style="color:#888;font-size:14px;">상세 답안 데이터가 없습니다. (점수: ${att.score}점)</p>`;
-  }
-  let html = '';
-  att.details.forEach(d => {
-    // correct / user 필드가 없는 구형 레코드 방어
-    const correct = d.correct || d.정답 || '';
-    const user    = d.user    || d.작성 || '';
-    const acc     = typeof d.acc === 'number' ? d.acc : (d.정확도 || 0);
-    const title   = d.title   || d.제목 || '';
-    const bc      = acc === 100 ? 'var(--success)' : 'var(--error)';
-    html += `<div style="margin-bottom:15px;border:1px solid #ddd;padding:15px;border-radius:8px;">
-      <strong style="color:var(--primary);">${title}</strong>
-      <span style="color:#fff;background:${bc};padding:2px 6px;border-radius:4px;font-size:12px;font-weight:bold;margin-left:5px;">${acc}%</span>
-      <div style="margin-top:10px;font-size:13px;">
-        <strong style="color:#666;">[제출 답안]</strong>
-        <div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">${renderDiff(user, correct)}</div>
-      </div>
-      <div style="margin-top:8px;font-size:13px;">
-        <strong style="color:#10b981;">[정답]</strong>
-        <div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">${correct || '(정답 데이터 없음)'}</div>
-      </div>
-    </div>`;
-  });
-  return html;
 }
 
 // ─── 초기 로드 ────────────────────────────────────────────────
@@ -296,7 +259,7 @@ window.onload = async () => {
       el("btn-exam").classList.add("hidden");
       el("msg-closed").classList.remove("hidden");
     }
-  } catch(e) { console.error("설정 로딩 실패:", e); }
+  } catch(e) { console.error(e); }
 };
 
 function showScreen(id) {
@@ -320,7 +283,7 @@ window.checkStart = (practice) => {
 
 window.openPracticeSetup = () => {
   el("practice-list").innerHTML = bibleData.map(b =>
-    `<label style="display:block;margin-bottom:5px;"><input type="checkbox" class="p-cb" value="${b.id}" checked> ${b.title}</label>`
+    '<label style="display:block;margin-bottom:5px;"><input type="checkbox" class="p-cb" value="'+b.id+'" checked> '+b.title+'</label>'
   ).join('');
   showScreen("screen-practice-setup");
 };
@@ -334,22 +297,25 @@ function startExam() {
     ? Array.from(document.querySelectorAll(".p-cb:checked")).map(c=>parseInt(c.value))
     : examSettings.selectedIds;
   if (isPracticeMode && !ids.length) return alert("최소 하나 이상 선택해주세요.");
-
   let raw = bibleData.filter(b=>ids.includes(b.id)).map(b=>({id:b.id,title:b.title,verses:b.verses}));
   currentQuestions = order==='random' ? raw.sort(()=>Math.random()-.5) : raw;
 
-  el("question-container").innerHTML = currentQuestions.map((q,i) => {
-    let inner = isChunk
-      ? `<textarea class="ans chunk-ans" data-qi="${i}" placeholder="이곳에 말씀 전체를 통으로 작성하세요..."></textarea>`
-      : q.verses.map((v,vi) =>
-          `<div><span class="verse-label">${v.n}절</span>
-          <textarea class="ans verse-ans" data-qi="${i}" data-vi="${vi}" placeholder="${v.n}절 말씀을 작성하세요..."></textarea></div>`
-        ).join('');
-    return `<div class="question-box"><div class="q-title">Q${i+1}. ${q.title}</div>${inner}</div>`;
-  }).join('');
+  let html = '';
+  currentQuestions.forEach((q,i) => {
+    html += '<div class="question-box"><div class="q-title">Q'+(i+1)+'. '+q.title+'</div>';
+    if (isChunk) {
+      html += '<textarea class="ans chunk-ans" data-qi="'+i+'" placeholder="이곳에 말씀 전체를 통으로 작성하세요..."></textarea>';
+    } else {
+      q.verses.forEach((v,vi) => {
+        html += '<div><span class="verse-label">'+v.n+'절</span><textarea class="ans verse-ans" data-qi="'+i+'" data-vi="'+vi+'" placeholder="'+v.n+'절 말씀을 작성하세요..."></textarea></div>';
+      });
+    }
+    html += '</div>';
+  });
 
+  el("question-container").innerHTML = html;
   el("exam-title").innerText  = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
-  el("exam-info").innerText   = `${el("in-region").value} ${el("in-dept").value} ${el("in-role").value} ${el("in-name").value}`;
+  el("exam-info").innerText   = el("in-region").value+' '+el("in-dept").value+' '+el("in-role").value+' '+el("in-name").value;
   showScreen("screen-exam");
 }
 
@@ -361,56 +327,46 @@ window.submitExam = async () => {
 
   currentQuestions.forEach((q,i) => {
     if (isChunk) {
-      const u = document.querySelector(`.chunk-ans[data-qi="${i}"]`).value.trim();
+      const u = document.querySelector('.chunk-ans[data-qi="'+i+'"]').value.trim();
       const c = q.verses.map(v=>v.t).join(" ");
       const s = calculateScore(u,c);
       total += s;
-      detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
-        <div class="q-title">${q.title} <span class="acc-badge ${s===100?'acc-high':'acc-low'}">정확도 ${s}%</span></div>
-        <div style="font-size:14px;margin-bottom:10px;"><strong style="color:#555;">[나의 답안]</strong>
-        <div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">${renderDiff(u,c)}</div></div>
-        <div style="font-size:14px;"><strong style="color:#10b981;">[정답]</strong>
-        <div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">${c}</div></div>
-      </div>`;
+      detailsHtml += '<div class="question-box" style="margin-bottom:15px;"><div class="q-title">'+q.title+' <span class="acc-badge '+(s===100?'acc-high':'acc-low')+'">정확도 '+s+'%</span></div>'
+        +'<div style="font-size:14px;margin-bottom:10px;"><strong style="color:#555;">[나의 답안]</strong><div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">'+renderDiff(u,c)+'</div></div>'
+        +'<div style="font-size:14px;"><strong style="color:#10b981;">[정답]</strong><div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">'+c+'</div></div></div>';
       dbDetails.push({title:q.title, user:u, correct:c, acc:s});
     } else {
       let vS=[], vH='', uArr=[], cArr=[];
       q.verses.forEach((v,vi) => {
-        const u = document.querySelector(`.verse-ans[data-qi="${i}"][data-vi="${vi}"]`).value.trim();
+        const u = document.querySelector('.verse-ans[data-qi="'+i+'"][data-vi="'+vi+'"]').value.trim();
         const s = calculateScore(u,v.t);
         vS.push(s);
-        vH += `<div style="margin-top:8px;padding:10px;border-left:3px solid var(--secondary);background:#f8fafc;margin-bottom:8px;">
-          <div style="font-weight:bold;font-size:13px;margin-bottom:4px;">${v.n}절 (${s===100?'정답':'오답'})</div>
-          <div style="font-size:13px;margin-bottom:4px;"><strong style="color:#666;">[작성]</strong> ${renderDiff(u,v.t)}</div>
-          <div style="font-size:13px;color:#065f46;"><strong style="color:#10b981;">[정답]</strong> ${v.t}</div>
-        </div>`;
-        uArr.push(`(${v.n}절) ${u}`);
-        cArr.push(`(${v.n}절) ${v.t}`);
+        vH += '<div style="margin-top:8px;padding:10px;border-left:3px solid var(--secondary);background:#f8fafc;margin-bottom:8px;">'
+          +'<div style="font-weight:bold;font-size:13px;margin-bottom:4px;">'+v.n+'절 ('+(s===100?'정답':'오답')+')</div>'
+          +'<div style="font-size:13px;margin-bottom:4px;"><strong style="color:#666;">[작성]</strong> '+renderDiff(u,v.t)+'</div>'
+          +'<div style="font-size:13px;color:#065f46;"><strong style="color:#10b981;">[정답]</strong> '+v.t+'</div></div>';
+        uArr.push('('+v.n+'절) '+u);
+        cArr.push('('+v.n+'절) '+v.t);
       });
       const qs = Math.round(vS.reduce((a,b)=>a+b,0)/vS.length);
       total += qs;
-      detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
-        <div class="q-title">${q.title} <span class="acc-badge ${qs===100?'acc-high':'acc-low'}">정확도 ${qs}%</span></div>${vH}</div>`;
+      detailsHtml += '<div class="question-box" style="margin-bottom:15px;"><div class="q-title">'+q.title+' <span class="acc-badge '+(qs===100?'acc-high':'acc-low')+'">정확도 '+qs+'%</span></div>'+vH+'</div>';
       dbDetails.push({title:q.title, user:uArr.join("  "), correct:cArr.join("  "), acc:qs});
     }
   });
 
   const avg = Math.round(total/currentQuestions.length);
-  el("res-score").innerText = `${avg}점`;
-  el("res-acc").innerText   = `평균 정확도: ${avg}%`;
-  el("res-user").innerText  = `${el("in-region").value} ${el("in-dept").value} ${el("in-role").value} ${el("in-name").value}`;
+  el("res-score").innerText = avg+'점';
+  el("res-acc").innerText   = '평균 정확도: '+avg+'%';
+  el("res-user").innerText  = el("in-region").value+' '+el("in-dept").value+' '+el("in-role").value+' '+el("in-name").value;
   el("result-details").innerHTML = detailsHtml;
 
   if (!isPracticeMode) {
     try {
       await addDoc(collection(db, COL), {
-        region: el("in-region").value,
-        dept:   el("in-dept").value,
-        role:   el("in-role").value,
-        name:   el("in-name").value,
-        score: avg, avgAcc: avg,
-        details: dbDetails,
-        timestamp: new Date()
+        region: el("in-region").value, dept: el("in-dept").value,
+        role:   el("in-role").value,   name: el("in-name").value,
+        score: avg, avgAcc: avg, details: dbDetails, timestamp: new Date()
       });
     } catch(e) { console.error(e); alert("DB 저장 중 오류가 발생했습니다."); }
   }
@@ -422,13 +378,9 @@ window.adminLogin = async () => {
   try {
     const res = await signInWithPopup(auth, provider);
     if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
-      // auth 토큰 강제 갱신 후 Firestore에 반영될 때까지 onAuthStateChanged 로 확인
+      // 토큰 갱신 후 충분히 대기
       await res.user.getIdToken(true);
-      await new Promise(resolve => {
-        const unsub = onAuthStateChanged(auth, user => {
-          if (user) { unsub(); resolve(); }
-        });
-      });
+      await new Promise(r => setTimeout(r, 1500));
       showScreen("screen-admin");
       await loadAdminData();
     } else {
@@ -436,148 +388,132 @@ window.adminLogin = async () => {
       auth.signOut();
       location.reload();
     }
-  } catch(e) { alert("로그인 실패: " + e.message); console.error(e); }
+  } catch(e) { alert("로그인 실패: "+e.message); console.error(e); }
 };
 
 // ─── 관리자 데이터 로딩 ───────────────────────────────────────
 async function loadAdminData() {
-  // 설정 UI 세팅
   el("set-isopen").value = String(examSettings.isOpen);
   el("admin-chunk-list").innerHTML = bibleData.map(b => {
     const chk = (examSettings.selectedIds||[]).includes(b.id) ? 'checked' : '';
-    return `<label style="display:inline-block;margin-right:15px;margin-bottom:5px;">
-      <input type="checkbox" class="a-cb" value="${b.id}" ${chk}> ${b.title}</label>`;
+    return '<label style="display:inline-block;margin-right:15px;margin-bottom:5px;"><input type="checkbox" class="a-cb" value="'+b.id+'" '+chk+'> '+b.title+'</label>';
   }).join('');
 
   el("admin-loading").innerText = "데이터 불러오는 중...";
   el("admin-loading").classList.remove("hidden");
   el("admin-res-table").classList.add("hidden");
 
-  // auth 현재 유저 확인
-  const currentUser = auth.currentUser;
-  console.log("[Admin] currentUser:", currentUser ? currentUser.email : "없음");
-
   try {
-    // 토큰 재확인 후 읽기
-    if (currentUser) await currentUser.getIdToken(true);
     const snap = await getDocs(collection(db, COL));
-    console.log(`[Admin] ${COL} → ${snap.size}개 문서 로드됨`);
-
-    if (snap.empty) {
-      console.warn("[Admin] snap.empty=true. 문서가 없거나 읽기 권한 없음. auth:", auth.currentUser?.email);
-      el("admin-loading").innerText = "⚠ 데이터 없음 (권한 문제일 수 있음 - 콘솔 확인)";
-      el("admin-res-table").classList.remove("hidden");
-      el("admin-res-table").querySelector("tbody").innerHTML = '<tr><td colspan="5" style="color:#ef4444;">응시 기록을 불러오지 못했습니다.<br>F12 콘솔에서 [Admin] 로그를 확인해주세요.</td></tr>';
-      return;
-    }
 
     const groups = {};
     snap.forEach(ds => {
       try {
-        const d = { ...ds.data(), id: ds.id };
-        // 필드 기본값 보정 (구형 레코드 대응)
-        d.region = d.region || d.지역 || '';
-        d.dept   = d.dept   || d.부서 || '';
-        d.role   = d.role   || d.직책 || '';
-        d.name   = d.name   || d.이름 || d.성함 || '(이름없음)';
-        d.score  = typeof d.score === 'number' ? d.score
-                  : (typeof d.avgAcc === 'number' ? d.avgAcc : 0);
-
-        const key = `${d.region}__${d.dept}__${d.role}__${d.name}`;
-        if (!groups[key]) groups[key] = { key, info:d, attempts:[] };
+        const d = Object.assign({}, ds.data(), { id: ds.id });
+        d.region = d.region || '';
+        d.dept   = d.dept   || '';
+        d.role   = d.role   || '';
+        d.name   = d.name   || '(이름없음)';
+        d.score  = typeof d.score === 'number' ? d.score : (typeof d.avgAcc === 'number' ? d.avgAcc : 0);
+        const key = d.region+'__'+d.dept+'__'+d.role+'__'+d.name;
+        if (!groups[key]) groups[key] = { key:key, info:d, attempts:[] };
         groups[key].attempts.push(d);
-      } catch(e) { console.warn("문서 파싱 오류:", ds.id, e); }
+      } catch(e) { console.warn("파싱 오류:", ds.id, e); }
     });
 
     groupedAdminResults = Object.values(groups).map(g => {
-      g.maxScore   = Math.max(...g.attempts.map(a => a.score));
-      g.latestTime = Math.max(...g.attempts.map(a => toUnixSeconds(a.timestamp)));
+      g.maxScore   = Math.max.apply(null, g.attempts.map(a => a.score));
+      g.latestTime = Math.max.apply(null, g.attempts.map(a => toUnixSeconds(a.timestamp)));
       return g;
     });
-
-    console.log(`[Admin] 그룹화된 응시자: ${groupedAdminResults.length}명`);
 
     el("admin-loading").classList.add("hidden");
     el("admin-res-table").classList.remove("hidden");
     renderAdminTable();
 
   } catch(e) {
-    console.error("[Admin] 로딩 실패:", e);
-    el("admin-loading").innerText = `⚠ 로딩 실패: ${e.message}`;
+    console.error("로딩 실패:", e);
+    el("admin-loading").innerText = "로딩 실패: "+e.message;
   }
 }
 
 // ─── 테이블 렌더링 ────────────────────────────────────────────
 window.renderAdminTable = () => {
   const sort = el("admin-sort").value;
-  let list = [...groupedAdminResults];
+  let list = groupedAdminResults.slice();
   if (sort==='scoreDesc') list.sort((a,b)=>b.maxScore-a.maxScore);
   else if (sort==='nameAsc') list.sort((a,b)=>a.info.name.localeCompare(b.info.name,'ko'));
   else list.sort((a,b)=>b.latestTime-a.latestTime);
 
   const tbody = el("admin-res-table").querySelector("tbody");
   if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
+    tbody.innerHTML = '<tr><td colspan="5">응시 기록이 없습니다.</td></tr>';
     return;
   }
-  tbody.innerHTML = list.map(g => {
+  tbody.innerHTML = list.map((g,gi) => {
     const date   = g.latestTime > 0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '날짜없음';
     const retake = g.attempts.length > 1
-      ? `<span style="color:var(--error);font-weight:bold;">O (${g.attempts.length}회)</span>`
-      : `<span style="color:#999;">X</span>`;
-    // key에 ' 가 포함될 수 있으므로 btoa 인코딩으로 전달
-    const safeKey = btoa(encodeURIComponent(g.key));
-    return `<tr>
-      <td style="text-align:left;">
-        <div style="font-size:11px;color:#888;">${g.info.region} / ${g.info.dept} / ${g.info.role}</div>
-        <strong>${g.info.name}</strong>
-      </td>
-      <td><strong style="color:var(--primary);font-size:16px;">${g.maxScore}점</strong></td>
-      <td>${retake}</td>
-      <td style="font-size:12px;color:#666;">${date}</td>
-      <td><button class="btn btn-sm btn-outline" onclick="showUserModal('${safeKey}')">상세보기</button></td>
-    </tr>`;
+      ? '<span style="color:var(--error);font-weight:bold;">O ('+g.attempts.length+'회)</span>'
+      : '<span style="color:#999;">X</span>';
+    return '<tr>'
+      +'<td style="text-align:left;"><div style="font-size:11px;color:#888;">'+g.info.region+' / '+g.info.dept+' / '+g.info.role+'</div><strong>'+g.info.name+'</strong></td>'
+      +'<td><strong style="color:var(--primary);font-size:16px;">'+g.maxScore+'점</strong></td>'
+      +'<td>'+retake+'</td>'
+      +'<td style="font-size:12px;color:#666;">'+date+'</td>'
+      +'<td><button class="btn btn-sm btn-outline" onclick="showUserModal('+gi+')">상세보기</button></td>'
+      +'</tr>';
   }).join('');
 };
 
-function findGroup(safeKey) {
-  const key = decodeURIComponent(atob(safeKey));
-  return groupedAdminResults.find(g => g.key === key);
-}
-
 // ─── 상세 모달 ────────────────────────────────────────────────
-window.showUserModal = (safeKey) => {
-  const group = findGroup(safeKey);
+window.showUserModal = (gi) => {
+  const group = groupedAdminResults[gi];
   if (!group) return;
+  el("modal-title").innerText = '['+group.info.name+'] 님의 응시 내역 (최고: '+group.maxScore+'점)';
 
-  el("modal-title").innerText = `[${group.info.name}] 님의 응시 내역 (최고: ${group.maxScore}점)`;
-  const nav = group.attempts.map((a,i) =>
-    `<button class="btn btn-sm btn-secondary" style="margin:0;" onclick="renderAttemptDetail('${safeKey}',${i})">${i+1}회차 (${a.score}점)</button>`
-  ).join('');
+  let nav = '<div style="margin-bottom:15px;display:flex;gap:5px;flex-wrap:wrap;">';
+  group.attempts.forEach((a,i) => {
+    nav += '<button class="btn btn-sm btn-secondary" style="margin:0;" onclick="renderAttemptDetail('+gi+','+i+')">'+(i+1)+'회차 ('+a.score+'점)</button>';
+  });
+  nav += '</div>';
 
-  el("modal-body").innerHTML =
-    `<div style="margin-bottom:15px;display:flex;gap:5px;flex-wrap:wrap;">${nav}</div>
-     <div id="attempt-detail-container"></div>`;
+  el("modal-body").innerHTML = nav + '<div id="attempt-detail-container"></div>';
   el("modal-detail").classList.remove("hidden");
-  renderAttemptDetail(safeKey, group.attempts.length - 1);
+  renderAttemptDetail(gi, group.attempts.length - 1);
 };
 
-window.renderAttemptDetail = (safeKey, idx) => {
-  const group = findGroup(safeKey);
+window.renderAttemptDetail = (gi, idx) => {
+  const group = groupedAdminResults[gi];
   const att   = group.attempts[idx];
 
-  const detailHtml = renderOldFormatDetail(att);
+  let detailHtml = '';
+  if (!att.details || att.details.length === 0) {
+    detailHtml = '<p style="color:#888;font-size:14px;">상세 답안 데이터가 없습니다. (점수: '+att.score+'점)</p>';
+  } else {
+    att.details.forEach(d => {
+      const correct = d.correct || '';
+      const user    = d.user    || '';
+      const acc     = typeof d.acc === 'number' ? d.acc : 0;
+      const bc      = acc === 100 ? 'var(--success)' : 'var(--error)';
+      detailHtml += '<div style="margin-bottom:15px;border:1px solid #ddd;padding:15px;border-radius:8px;">'
+        +'<strong style="color:var(--primary);">'+d.title+'</strong>'
+        +' <span style="color:#fff;background:'+bc+';padding:2px 6px;border-radius:4px;font-size:12px;font-weight:bold;">'+acc+'%</span>'
+        +'<div style="margin-top:10px;font-size:13px;"><strong style="color:#666;">[제출 답안]</strong>'
+        +'<div class="result-content-box" style="background:#f9f9f9;border:1px solid #eee;">'+renderDiff(user,correct)+'</div></div>'
+        +'<div style="margin-top:8px;font-size:13px;"><strong style="color:#10b981;">[정답]</strong>'
+        +'<div class="result-content-box" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">'+correct+'</div></div>'
+        +'</div>';
+    });
+  }
 
   el("attempt-detail-container").innerHTML =
-    `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
-       background:#f1f5f9;padding:10px;border-radius:8px;">
-      <strong style="font-size:16px;">${idx+1}회차 (점수: ${att.score}점)</strong>
-      <button class="btn btn-sm btn-danger" style="margin:0;"
-        onclick="deleteAttempt('${safeKey}','${att.id}')">이 회차 삭제</button>
-    </div>${detailHtml}`;
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;background:#f1f5f9;padding:10px;border-radius:8px;">'
+    +'<strong style="font-size:16px;">'+(idx+1)+'회차 (점수: '+att.score+'점)</strong>'
+    +'<button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('+gi+',\''+att.id+'\')">이 회차 삭제</button>'
+    +'</div>'+detailHtml;
 };
 
-window.deleteAttempt = async (safeKey, docId) => {
+window.deleteAttempt = async (gi, docId) => {
   if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?")) return;
   try {
     await deleteDoc(doc(db, COL, docId));
@@ -594,11 +530,11 @@ window.downloadExcel = () => {
   groupedAdminResults.forEach(g => {
     const date = g.latestTime > 0 ? new Date(g.latestTime*1000).toLocaleString('ko-KR') : '';
     csv += [g.info.region,g.info.dept,g.info.role,g.info.name,g.maxScore,g.attempts.length,date]
-      .map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",") + "\n";
+      .map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",") + "\n";
   });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));
-  a.download = `사명자_실력점검_${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = '사명자_실력점검_'+new Date().toISOString().slice(0,10)+'.csv';
   a.click();
 };
 
