@@ -144,7 +144,7 @@ th{background:#f1f5f9;font-weight:700}
         </div>
         <button class="btn" onclick="saveAdminSettings()">기본 설정 저장</button>
         <hr style="margin:30px 0">
-        <h3>응시자 데이터 관리 (재시험 통합)</h3>
+        <h3>응시자 데이터 관리 (과거 V5 데이터 강제 통합)</h3>
         <div class="admin-tools">
             <div>
                 <label style="font-size:13px;font-weight:700;margin-right:5px">정렬:</label>
@@ -195,7 +195,7 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
 // =========================================================================
-// 1. data.js(window.BIBLE)에서 텍스트를 가져오기 위한 출제 범위(Scope) 설정
+// 1. data.js(window.BIBLE)에서 텍스트를 가져오기 위한 출제 범위 설정
 // =========================================================================
 const examScope = [
     { id: 1, title: "계 1:1~3", refs: [{c:1, v:1}, {c:1, v:2}, {c:1, v:3}] },
@@ -210,7 +210,7 @@ const examScope = [
     { id: 10, title: "계 22:18~19", refs: [{c:22, v:18}, {c:22, v:19}] }
 ];
 
-let bibleData = []; // window.BIBLE 데이터를 융합해서 담을 배열
+let bibleData = []; 
 let examSettings = { isOpen: true, selectedIds: [1,2,3,4,5,6,7,8,9,10] };
 let currentQuestions = [];
 let isPracticeMode = false;
@@ -220,6 +220,8 @@ window.$ = (id) => document.getElementById(id);
 
 // 채점 로직: 띄어쓰기 및 문장부호 무시, 글자 하나 틀리면 0점
 function calculateScore(userAns, correctAns) {
+    if(!userAns) userAns = "";
+    if(!correctAns) correctAns = "";
     let u = userAns.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
     let c = correctAns.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
     if (u === c && u.length > 0) return 100;
@@ -229,6 +231,7 @@ function calculateScore(userAns, correctAns) {
 // 오답 가독성 표시 로직
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
+    if (!correctAns) correctAns = "";
     if (typeof Diff === 'undefined') return userAns;
 
     const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
@@ -252,15 +255,14 @@ function renderDiff(userAns, correctAns) {
 }
 
 window.onload = async () => {
-    // 2. data.js 파일 로드 검증 및 bibleData 배열 동적 생성
+    // data.js 파일 로드 검증
     if (typeof window.BIBLE === 'undefined') {
-        alert("성경 데이터(data.js)를 불러오지 못했습니다. 파일 경로를 확인해주세요.");
+        alert("성경 데이터(data.js)를 불러오지 못했습니다. 동일한 폴더에 파일이 있는지 확인해주세요.");
         return;
     }
 
     bibleData = examScope.map(scope => {
         let verses = scope.refs.map(ref => {
-            // 외부 BIBLE 데이터에서 장(c)과 절(v)을 찾아 매핑
             let verseText = window.BIBLE[ref.c] && window.BIBLE[ref.c][ref.v] ? window.BIBLE[ref.c][ref.v] : "텍스트 누락";
             return { n: String(ref.v), t: verseText };
         });
@@ -318,18 +320,13 @@ function startExam() {
     if (isPracticeMode && targetIds.length === 0) return alert("최소 하나 이상의 성구를 선택해주세요.");
 
     bibleData.filter(b => targetIds.includes(b.id)).forEach(b => {
-        rawQuestions.push({
-            id: b.id,
-            title: b.title,
-            verses: b.verses
-        });
+        rawQuestions.push({ id: b.id, title: b.title, verses: b.verses });
     });
 
     currentQuestions = order === 'random' ? rawQuestions.sort(() => Math.random() - 0.5) : rawQuestions;
 
     let qHtml = '';
     currentQuestions.forEach((q, idx) => {
-        // 문제 카드 상자는 무조건 '한 덩어리'로 생성
         qHtml += `<div class="question-box">
             <div class="q-title">Q${idx + 1}. ${q.title}</div>`;
         
@@ -463,6 +460,9 @@ window.adminLogin = async () => {
     } catch (e) { alert("로그인 실패"); console.error(e); }
 };
 
+// =========================================================================
+// 방어적 코딩 적용: 예전 V5 데이터 강제 통합
+// =========================================================================
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
     let chunkHtml = '';
@@ -478,19 +478,37 @@ async function loadAdminData() {
     snap.forEach(docSnap => {
         let data = docSnap.data();
         data.id = docSnap.id;
-        let key = `${data.region}_${data.dept}_${data.role}_${data.name}`;
-        if (!groups[key]) groups[key] = { key: key, info: data, attempts: [] };
+        
+        // 예전 데이터 항목이 없을 때 기본값 세팅 (강제 통합용 방어코드)
+        let region = data.region || "미상";
+        let dept = data.dept || "미상";
+        let role = data.role || "미상";
+        let name = data.name || "미상";
+        
+        let key = `${region}_${dept}_${role}_${name}`;
+        
+        // 점수가 score도 없고 avgAcc도 없으면 0점
+        data.score = data.score !== undefined ? data.score : (data.avgAcc || 0);
+
+        if (!groups[key]) groups[key] = { key: key, info: {region, dept, role, name}, attempts: [] };
         groups[key].attempts.push(data);
     });
 
     groupedAdminResults = Object.values(groups).map(g => {
         g.maxScore = Math.max(...g.attempts.map(a => a.score));
-        g.latestTime = Math.max(...g.attempts.map(a => {
-            if(!a.timestamp) return 0;
+        
+        // 타임스탬프 오류 방지 강제 변환
+        let times = g.attempts.map(a => {
+            if (!a.timestamp) return 0;
+            if (typeof a.timestamp === 'number') return a.timestamp;
             if (a.timestamp.seconds) return a.timestamp.seconds;
             if (a.timestamp.toDate) return a.timestamp.toDate().getTime() / 1000;
-            return new Date(a.timestamp).getTime() / 1000;
-        }));
+            let parsed = new Date(a.timestamp).getTime() / 1000;
+            return isNaN(parsed) ? 0 : parsed;
+        });
+        g.latestTime = Math.max(...times);
+        if (g.latestTime === -Infinity || isNaN(g.latestTime)) g.latestTime = 0;
+        
         return g;
     });
 
@@ -507,7 +525,7 @@ window.renderAdminTable = () => {
 
     let tbodyHtml = '';
     list.forEach(g => {
-        let dateStr = new Date(g.latestTime * 1000).toLocaleString();
+        let dateStr = g.latestTime === 0 ? "시간 기록 없음" : new Date(g.latestTime * 1000).toLocaleString();
         let retakeHtml = g.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${g.attempts.length}회)</span>` : `<span style="color:#999;">X</span>`;
         
         tbodyHtml += `<tr><td style="text-align:left;"><div style="font-size:11px; color:#888;">${g.info.region} / ${g.info.dept} / ${g.info.role}</div><strong>${g.info.name}</strong></td><td><strong style="color:var(--primary); font-size:16px;">${g.maxScore}점</strong></td><td>${retakeHtml}</td><td style="font-size:12px; color:#666;">${dateStr}</td><td><button class="btn btn-sm btn-outline" onclick="showUserModal('${g.key}')">상세보기</button></td></tr>`
@@ -543,19 +561,23 @@ window.renderAttemptDetail = (key, attIdx) => {
     
     let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;"><strong style="font-size:16px;">${attIdx + 1}회차 답안 (점수: ${att.score}점)</strong><button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${key}', '${att.id}')">이 회차 삭제</button></div>`;
 
-    if (!att.details || att.details.length === 0) {
-        html += '<p>상세 데이터가 없습니다. (구버전 기록)</p>';
+    if (!att.details || !Array.isArray(att.details) || att.details.length === 0) {
+        html += '<p>상세 데이터가 없습니다. (오래된 데이터 형식)</p>';
     } else {
         att.details.forEach(det => {
-            let badgeColor = det.acc === 100 ? 'var(--success)' : 'var(--error)';
+            // 과거 데이터 방어 코드
+            let uAns = det.user || '(기록 없음)';
+            let cAns = det.correct || '(정답 데이터 없음)';
+            let title = det.title || '문제';
+            let acc = det.acc !== undefined ? det.acc : 0;
+            let badgeColor = acc === 100 ? 'var(--success)' : 'var(--error)';
             
-            // 기존 기록과 신규 기록 렌더링 호환
-            if (det.user.includes("절) ")) {
-                // 신규 분할 기록의 경우 원본 텍스트를 그대로 출력
-                html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${det.title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${det.acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안]</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${det.user}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${det.correct}</div></div></div>`
+            // 기존 분할 방식의 데이터인지 확인 후 렌더링
+            if (uAns.includes("절) ")) {
+                html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안]</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${uAns}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cAns}</div></div></div>`
             } else {
-                 let diffHtml = renderDiff(det.user, det.correct);
-                 html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${det.title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${det.acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안] (틀린 글자 표시)</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${det.correct}</div></div></div>`
+                 let diffHtml = renderDiff(uAns, cAns);
+                 html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안] (틀린 글자 표시)</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cAns}</div></div></div>`
             }
         });
     }
@@ -576,7 +598,7 @@ window.downloadExcel = () => {
     if (groupedAdminResults.length === 0) return alert("다운로드할 데이터가 없습니다.");
     let csv = "\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
     groupedAdminResults.forEach(g => {
-        let dateStr = new Date(g.latestTime * 1000).toLocaleString();
+        let dateStr = g.latestTime === 0 ? "시간 기록 없음" : new Date(g.latestTime * 1000).toLocaleString();
         let row = [g.info.region, g.info.dept, g.info.role, g.info.name, g.maxScore, g.attempts.length, dateStr].map(v => `"${String(v).replace(/"/g, '""')}"`);
         csv += row.join(",") + "\n";
     });
