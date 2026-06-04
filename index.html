@@ -223,9 +223,7 @@ function calculateScore(userAns, correctAns) {
     return 0;
 }
 
-// =========================================================================
-// 💡 대대적 튜닝 파트: 마우스를 안 대도 틀린 단어 옆에 정답이 즉시 상시 노출되는 로직
-// =========================================================================
+// 💡 마우스 대지 않아도 정답이 단어 옆에 바로 고정 노출되는 가시성 극대화 로직
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
@@ -248,15 +246,12 @@ function renderDiff(userAns, correctAns) {
         let cClean = cW.replace(cleanRegex, '');
 
         if (uClean === cClean && uClean.length > 0) {
-            // 맞춘 단어는 예쁜 파란색
             userDisplayHtml += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${uW}</span> `;
         } else if (uClean.length > 0 || cClean.length > 0) {
             if (uW) {
-                // 핵심 기능: 마우스를 안 올려도 단어 바로 옆에 (정답: 00) 이 항상 보이도록 인라인 구조화 수정
                 userDisplayHtml += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700; background-color:#fee2e2; padding:0 3px; border-radius:4px;">${uW}</span><span style="color:#059669; font-size:12px; font-weight:bold; margin-right:5px; background-color:#ecfdf5; padding:1px 4px; border-radius:4px; border:1px solid #a7f3d0;">(정답:${cW})</span> `;
                 summaryNotes.push(`<li><strong style="color:var(--error);">${uW}</strong> <span style="color:#666;">❌ ➡️</span> <strong style="color:var(--success);">${cW ? cW : '(단어 삭제 필요)'}</strong> <span style="color:var(--success);">⭕</span></li>`);
             } else if (cW) {
-                // 단어를 아예 통째로 누락하고 안 쓴 경우 본문 자리에 들어갈 정답 알림 추가
                 userDisplayHtml += `<span style="color:#d97706; background-color:#fffbeb; font-size:12px; font-weight:bold; padding:1px 4px; border-radius:4px; border:1px solid #fef3c7; margin-right:5px;">[단어누락:${cW}]</span> `;
                 summaryNotes.push(`<li><strong style="color:#9a3412; background-color:#ffedd5; padding:0 4px; border-radius:4px;">단어 누락</strong> <span style="color:#666;">➡️</span> 원래 들어가야 할 단어: <strong style="color:var(--success);">${cW}</strong> <span style="color:var(--success);">⭕</span></li>`);
             }
@@ -265,7 +260,6 @@ function renderDiff(userAns, correctAns) {
 
     let finalHtml = `<div style="line-height:2.0; font-size:15px;">${userDisplayHtml.trim()}</div>`;
     
-    // 아래쪽 요약 리스트도 그대로 튼튼하게 살려두어 이중 가독성 확보
     if (summaryNotes.length > 0) {
         finalHtml += `<div style="margin-top:12px; padding:12px; background-color:#f8fafc; border-left:4px solid var(--primary); border-radius:4px; font-size:13px;">
             <strong style="color:var(--primary); display:block; margin-bottom:6px;">💡 틀린 부분 짚어보기:</strong>
@@ -294,6 +288,10 @@ window.onload = async () => {
     try {
         let snap = await getDoc(doc(db, "settings", "examV5"));
         if (snap.exists()) examSettings = snap.data();
+        if (!examSettings.isOpen) {
+            $("btn-exam").classList.add("hidden");
+            $("msg-closed").classList.remove("hidden");
+        }
     } catch (e) { 
         console.error("설정 로딩 실패:", e);
     }
@@ -380,7 +378,7 @@ window.submitExam = async () => {
             detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
                 <div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${score}%</span></div>
                 <div style="font-size:14px; margin-bottom:12px;">
-                    <strong style="color:#666;">[나의 작성 답안] (틀린 글자 표시)</strong><br>
+                    <strong style="color:#666;">[나의 작성 답안] (틀린 단어 표시)</strong><br>
                     <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div>
                 </div>
                 <div style="font-size:14px;">
@@ -474,9 +472,10 @@ window.adminLogin = async () => {
             auth.signOut();
             location.reload();
         }
-    } catch (e) { alert("로그인 실패 - 파이어베이스 구글 인증 도메인을 승인해주세요."); console.error(e); }
+    } catch (e) { alert("로그인 실패 - 파이어베이스 구글 인증 도메인을 확인해주세요."); console.error(e); }
 };
 
+// 💡 멱살 잡고 다 끌어오는 데이터 로드 로직 (where 조건 필터 완전 삭제하여 강제 전체 로드)
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
     let chunkHtml = '';
@@ -487,7 +486,8 @@ async function loadAdminData() {
     $("admin-chunk-list").innerHTML = chunkHtml;
 
     try {
-        let q = query(collection(db, "examResultsV5"), where("region", ">=", ""));
+        // [수정됨] where("region", ">=", "") 필터를 아예 지우고 통째로 긁어옵니다. 누락 0% 보장!
+        let q = query(collection(db, "examResultsV5"));
         let snap = await getDocs(q);
         let groups = {};
 
@@ -518,6 +518,7 @@ async function loadAdminData() {
         renderAdminTable();
     } catch (error) {
         console.error("데이터 로드 실패:", error);
+        alert("데이터 로드 에러입니다. 콘솔을 확인해주세요.");
     }
 }
 
@@ -558,33 +559,93 @@ window.renderAttemptDetail = (key, attIdx) => {
     let group = groupedAdminResults.find(g => g.key === key);
     let att = group.attempts[attIdx];
     
-    let html = `<h4>${attIdx + 1}회차 결과 보고서</h4>`;
+    // 💡 이 회차 삭제 버튼 100% 정상 복구
+    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;"><strong style="font-size:16px;">${attIdx + 1}회차 답안 (점수: ${att.score}점)</strong><button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${key}', '${att.id}')">이 회차 삭제</button></div>`;
 
-    att.details.forEach(det => {
-        let uAns = det.user || '';
-        let cAns = det.correct || '';
-        let title = det.title || '문제';
-        
-        let diffHtml = renderDiff(uAns, cAns);
-        
-        html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
-            <strong style="color:var(--primary); font-size:15px;">${title}</strong>
-            <div style="margin-top:10px;">
-                <strong>[원본 데이터 대조 결과]</strong>
-                <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${uAns.trim() ? diffHtml : '<span style="color:#999;">(실제 미입력 상태 혹은 공백 제출)</span>'}</div>
-            </div>
-            <div style="margin-top:10px;">
-                <strong style="color:#10b981;">[시스템 기준 정답]</strong>
-                <div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cAns}</div>
-            </div>
-        </div>`;
-    });
+    if (!att.details || !Array.isArray(att.details) || att.details.length === 0) {
+        html += '<p>상세 데이터가 없습니다. (오래된 데이터 형식)</p>';
+    } else {
+        att.details.forEach(det => {
+            let uAns = det.user || '';
+            let cAns = det.correct || '';
+            let title = det.title || '문제';
+            let acc = det.acc !== undefined ? det.acc : 0;
+            let badgeColor = acc === 100 ? 'var(--success)' : 'var(--error)';
+            
+            if (det.verseDetails && Array.isArray(det.verseDetails) && det.verseDetails.length > 0) {
+                let innerVersesHtml = '';
+                det.verseDetails.forEach(v => {
+                    let vDiffHtml = renderDiff(v.user, v.correct); 
+                    innerVersesHtml += `<div style="margin-top: 8px; padding: 10px; border-left: 3px solid var(--secondary); background: #f8fafc; margin-bottom: 8px;">
+                        <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${v.n}절</div>
+                        <div style="font-size:13px; margin-bottom:4px;"><strong style="color:#666;">[작성]</strong> ${vDiffHtml}</div>
+                        <div style="font-size:13px; color:#065f46;"><strong style="color:#10b981;">[정답]</strong> ${v.correct}</div>
+                    </div>`;
+                });
+                
+                html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
+                    <strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span>
+                    ${innerVersesHtml}
+                </div>`;
+            } 
+            else {
+                let diffHtml = renderDiff(uAns, cAns);
+                
+                html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
+                    <strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span>
+                    <div style="margin-top:12px; font-size:13px;">
+                        <strong style="color:#666;">[제출 답안] (틀린 단어 표시)</strong>
+                        <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${uAns.trim() ? diffHtml : '<span style="color:#999;">(미입력 상태)</span>'}</div>
+                    </div>
+                    <div style="margin-top:10px; font-size:13px;">
+                        <strong style="color:#10b981;">[총 정답]</strong>
+                        <div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cAns}</div>
+                    </div>
+                </div>`;
+            }
+        });
+    }
     $("attempt-detail-container").innerHTML = html;
 };
 
-window.deleteAttempt = () => { alert("데이터 열람 모드입니다."); };
-window.saveAdminSettings = () => { alert("데이터 열람 모드입니다."); };
-window.downloadExcel = () => { alert("데이터 열람 모드입니다."); };
+// 💡 삭제, 저장, 다운로드 기능 100% 정상 복구
+window.deleteAttempt = async (key, docId) => {
+    if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?\n삭제 후 복구할 수 없으며, 최고 점수가 변동될 수 있습니다.")) return;
+    try {
+        await deleteDoc(doc(db, "examResultsV5", docId));
+        alert("삭제되었습니다.");
+        $('modal-detail').classList.add('hidden');
+        loadAdminData();
+    } catch (e) { alert("삭제 실패: " + e.message); console.error(e); }
+};
+
+window.downloadExcel = () => {
+    if (groupedAdminResults.length === 0) return alert("다운로드할 데이터가 없습니다.");
+    let csv = "\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
+    groupedAdminResults.forEach(g => {
+        let dateStr = g.latestTime === 0 ? "시간 기록 없음" : new Date(g.latestTime * 1000).toLocaleString();
+        let row = [g.info.region, g.info.dept, g.info.role, g.info.name, g.maxScore, g.attempts.length, dateStr].map(v => `"${String(v).replace(/"/g, '""')}"`);
+        csv += row.join(",") + "\n";
+    });
+
+    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    let link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `사명자_실력점검_결과V5_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+};
+
+window.saveAdminSettings = async () => {
+    try {
+        let isOpen = $("set-isopen").value === "true";
+        let selectedIds = Array.from(document.querySelectorAll(".a-cb:checked")).map(cb => parseInt(cb.value));
+        if (selectedIds.length === 0) return alert("최소 하나 이상의 성구를 본 시험용으로 선택해주세요.");
+        
+        await setDoc(doc(db, "settings", "examV5"), { isOpen, selectedIds });
+        alert("설정이 저장되었습니다.");
+        location.reload();
+    } catch (e) { alert("저장 실패 권한문제일 수 있습니다: " + e.message); console.error(e); }
+};
 </script>
 </body>
 </html>
