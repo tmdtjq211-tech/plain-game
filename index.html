@@ -224,24 +224,29 @@ function calculateScore(userAns, correctAns) {
 }
 
 // =========================================================================
-// 🚀 띄어쓰기 붕괴 방지 + 단어 옆 정답 노출 UI (완벽 유지)
+// 🚀 띄어쓰기 완전 무시 (글자 단위) + 틀린 '글자' 옆에 예쁘게 정답 노출!
 // =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
     if (typeof Diff === 'undefined') return userAns;
 
+    // 띄어쓰기 도미노 현상을 원천 차단하기 위해 글자 단위(diffChars)로 대조합니다.
     let diffs = Diff.diffChars(correctAns, userAns);
     let html = '';
     let summaryNotes = [];
+
+    // 에러 발생 시 글자들을 모아둘 버퍼
     let errUser = '';
     let errCorrect = '';
 
+    // 버퍼에 쌓인 에러를 화면에 예쁜 꼬리표로 방출하는 내부 함수
     function flushErrors() {
         if (errUser || errCorrect) {
             let cUser = errUser.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
             let cCorrect = errCorrect.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
 
+            // 💡 띄어쓰기나 부호 차이만 날 경우 에러 표시 없이 정답의 띄어쓰기 형태로 투명 복원
             if (cUser.length === 0 && cCorrect.length === 0) {
                 html += errCorrect;
             } else {
@@ -254,7 +259,7 @@ function renderDiff(userAns, correctAns) {
                         summaryNotes.push(`<li><strong style="color:var(--error);">${errUser}</strong> <span style="color:#666;">❌ ➡️</span> <strong style="color:var(--success);">${errCorrect}</strong> <span style="color:var(--success);">⭕</span></li>`);
                     } else {
                         html += `<span style="color:#d97706; background-color:#fffbeb; font-size:12px; font-weight:bold; border-radius:4px; border:1px solid #fef3c7; margin-right:4px;">[빠짐:${errCorrect}]</span>`;
-                        summaryNotes.push(`<li><strong style="color:#9a3412; background-color:#ffedd5; padding:0 4px; border-radius:4px;">빠진 부분</strong> <span style="color:#666;">➡️</span> 원래 들어가야 할 내용: <strong style="color:var(--success);">${errCorrect}</strong> <span style="color:var(--success);">⭕</span></li>`);
+                        summaryNotes.push(`<li><strong style="color:#9a3412; background-color:#ffedd5; padding:0 4px; border-radius:4px;">빠진 글자</strong> <span style="color:#666;">➡️</span> 원래 들어가야 할 내용: <strong style="color:var(--success);">${errCorrect}</strong> <span style="color:var(--success);">⭕</span></li>`);
                     }
                 } else if (cUser.length > 0 && cCorrect.length === 0) {
                     summaryNotes.push(`<li><strong style="color:var(--error);">${errUser}</strong> <span style="color:#666;">❌ ➡️</span> <span style="color:var(--success);">(불필요한 글자) ⭕</span></li>`);
@@ -266,9 +271,11 @@ function renderDiff(userAns, correctAns) {
     }
 
     diffs.forEach(part => {
-        if (part.added) errUser += part.value; 
-        else if (part.removed) errCorrect += part.value; 
-        else {
+        if (part.added) {
+            errUser += part.value; 
+        } else if (part.removed) {
+            errCorrect += part.value; 
+        } else {
             flushErrors();
             html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${part.value}</span>`;
         }
@@ -493,7 +500,7 @@ window.adminLogin = async () => {
 };
 
 // =========================================================================
-// 🚑 [강제 복구] 필터 다 깨부수고 창고 안에 있는 데이터 100% 멱살 잡아오는 로직
+// 🚑 [100% 원상 복구] 정상 작동하던 그 쿼리문으로 되돌려 명단 부활
 // =========================================================================
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
@@ -505,36 +512,27 @@ async function loadAdminData() {
     $("admin-chunk-list").innerHTML = chunkHtml;
 
     try {
-        // 에러를 유발하던 query() 필터를 싹 지워버리고 원초적으로 컬렉션 전체를 긁어옵니다.
-        let colRef = collection(db, "examResultsV5");
-        let snap = await getDocs(colRef);
+        // [원상 복구 완료] 관리자님이 기존에 문제없이 잘 쓰시던 그 필터 그대로 부활시켰습니다.
+        let q = query(collection(db, "examResultsV5"), where("region", ">=", ""));
+        let snap = await getDocs(q);
         let groups = {};
-        let dataCount = 0;
 
         snap.forEach(docSnap => {
-            dataCount++;
             let data = docSnap.data();
+            if(!data.name && !data.region) return; 
+
             data.id = docSnap.id;
-            
-            // 데이터가 누락됐거나 깨져있어도 절대 버리지 않고 '미상'으로 살려냅니다.
             let region = data.region || "미상";
             let dept = data.dept || "미상";
             let role = data.role || "미상";
             let name = data.name || "미상";
             
             let key = `${region}_${dept}_${role}_${name}`;
-            
-            // 점수 데이터가 숫자가 아니어도 절대 에러 안 나게 방어
-            data.score = data.score !== undefined ? Number(data.score) : (Number(data.avgAcc) || 0);
+            data.score = data.score !== undefined ? data.score : (data.avgAcc || 0);
 
             if (!groups[key]) groups[key] = { key: key, info: {region, dept, role, name}, attempts: [] };
             groups[key].attempts.push(data);
         });
-
-        // 만약 진짜로 서버에 데이터가 지워졌다면 경고창을 띄우게 함 (이 창이 안 뜨면 데이터 있는 것임!)
-        if (dataCount === 0) {
-            alert("파이어베이스 서버 창고가 비어있습니다. (응시 기록 0건)");
-        }
 
         groupedAdminResults = Object.values(groups).map(g => {
             g.maxScore = Math.max(...g.attempts.map(a => a.score));
