@@ -124,7 +124,7 @@ th{background:#f1f5f9;font-weight:700}
 
     <div id="screen-admin-auth" class="hidden" style="text-align:center;padding:40px 0">
         <h2>관리자 인증</h2>
-        <p style="color:#666">보안을 위해 관리자 구글 계정으로 로그인해주세요.</p>
+        <p style="color:#666">보안 규칙 준수를 위해 관리자 구글 계정으로 로그인해주세요.</p>
         <button class="btn" onclick="adminLogin()" style="width:auto;padding:12px 30px;background:#4285f4">구글 로그인</button> 
         <button class="btn btn-secondary" onclick="location.reload()" style="width:auto">취소</button>
     </div>
@@ -224,72 +224,57 @@ function calculateScore(userAns, correctAns) {
 }
 
 // =========================================================================
-// 💡 핵심 튜닝 파트: 정답의 띄어쓰기 뼈대를 추출하여 유저 글자 칸에 복원하는 로직
+// 💡 대대적 튜닝 파트: 마우스를 안 대도 틀린 단어 옆에 정답이 즉시 상시 노출되는 로직
 // =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
     if (typeof Diff === 'undefined') return userAns;
 
+    let uWords = userAns.split(/\s+/);
+    let cWords = correctAns.split(/\s+/);
     const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
-    
-    // 1. 유저와 정답에서 노이즈가 없는 순수 글자 알맹이만 남깁니다.
-    let uClean = userAns.replace(cleanRegex, '');
-    let cClean = correctAns.replace(cleanRegex, '');
 
-    // 2. 두 알맹이를 비교하여 '추가/삭제/유지' 맵을 확보합니다.
-    let diffs = Diff.diffChars(cClean, uClean);
+    let diffs = Diff.diffArrays(cWords.map(w => w.replace(cleanRegex, '')), uWords.map(w => w.replace(cleanRegex, '')));
     
-    // 3. 정답(correctAns) 본문의 띄어쓰기 위치 인덱스 지도를 만듭니다.
-    let spaceMap = [];
-    let cleanIdx = 0;
-    for (let i = 0; i < correctAns.length; i++) {
-        let char = correctAns[i];
-        if (/\s/.test(char)) {
-            spaceMap.push(cleanIdx); // 이 알맹이 글자 뒤에 공백이 있었다는 기록
-        } else if (!cleanRegex.test(char)) {
-            cleanIdx++;
+    let userDisplayHtml = '';
+    let summaryNotes = [];
+    let maxLength = Math.max(uWords.length, cWords.length);
+
+    for (let i = 0; i < maxLength; i++) {
+        let uW = uWords[i] || '';
+        let cW = cWords[i] || '';
+        let uClean = uW.replace(cleanRegex, '');
+        let cClean = cW.replace(cleanRegex, '');
+
+        if (uClean === cClean && uClean.length > 0) {
+            // 맞춘 단어는 예쁜 파란색
+            userDisplayHtml += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${uW}</span> `;
+        } else if (uClean.length > 0 || cClean.length > 0) {
+            if (uW) {
+                // 핵심 기능: 마우스를 안 올려도 단어 바로 옆에 (정답: 00) 이 항상 보이도록 인라인 구조화 수정
+                userDisplayHtml += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700; background-color:#fee2e2; padding:0 3px; border-radius:4px;">${uW}</span><span style="color:#059669; font-size:12px; font-weight:bold; margin-right:5px; background-color:#ecfdf5; padding:1px 4px; border-radius:4px; border:1px solid #a7f3d0;">(정답:${cW})</span> `;
+                summaryNotes.push(`<li><strong style="color:var(--error);">${uW}</strong> <span style="color:#666;">❌ ➡️</span> <strong style="color:var(--success);">${cW ? cW : '(단어 삭제 필요)'}</strong> <span style="color:var(--success);">⭕</span></li>`);
+            } else if (cW) {
+                // 단어를 아예 통째로 누락하고 안 쓴 경우 본문 자리에 들어갈 정답 알림 추가
+                userDisplayHtml += `<span style="color:#d97706; background-color:#fffbeb; font-size:12px; font-weight:bold; padding:1px 4px; border-radius:4px; border:1px solid #fef3c7; margin-right:5px;">[단어누락:${cW}]</span> `;
+                summaryNotes.push(`<li><strong style="color:#9a3412; background-color:#ffedd5; padding:0 4px; border-radius:4px;">단어 누락</strong> <span style="color:#666;">➡️</span> 원래 들어가야 할 단어: <strong style="color:var(--success);">${cW}</strong> <span style="color:var(--success);">⭕</span></li>`);
+            }
         }
     }
 
-    // 4. 대조 결과 마크업을 생성하면서, 정답 지도에 맞춰 띄어쓰기를 강제로 끼워 넣습니다.
-    let html = '';
-    let currentCleanIdx = 0; // 현재까지 출력된 알맹이 글자의 누적 수
-
-    diffs.forEach(part => {
-        let text = part.value; 
-
-        if (part.added) {
-            // 잘못 입력한 오타 글자 처리
-            for (let i = 0; i < text.length; i++) {
-                html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700;" title="틀린 글자">${text[i]}</span>`;
-                // 추가된 글자라도 정답의 특정 글자 수 타겟에 매칭되면 공백을 붙여 가독성 유지
-                if (spaceMap.includes(currentCleanIdx)) {
-                    html += ' ';
-                }
-            }
-        } else if (part.removed) {
-            // 빠트린 정답 글자 처리 (취소선)
-            for (let i = 0; i < text.length; i++) {
-                html += `<span class="diff-error" style="background-color:#fed7aa; color:#9a3412; text-decoration:line-through; font-weight:700;" title="빠진 글자: ${text[i]}">${text[i]}</span>`;
-                currentCleanIdx++; // 정답 글자가 지나갔으므로 인덱스 증가
-                if (spaceMap.includes(currentCleanIdx)) {
-                    html += ' ';
-                }
-            }
-        } else {
-            // 일치하는 일반 정상 글자 처리
-            for (let i = 0; i < text.length; i++) {
-                html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${text[i]}</span>`;
-                currentCleanIdx++; // 정답 글자가 지나갔으므로 인덱스 증가
-                if (spaceMap.includes(currentCleanIdx)) {
-                    html += ' ';
-                }
-            }
-        }
-    });
+    let finalHtml = `<div style="line-height:2.0; font-size:15px;">${userDisplayHtml.trim()}</div>`;
     
-    return html;
+    // 아래쪽 요약 리스트도 그대로 튼튼하게 살려두어 이중 가독성 확보
+    if (summaryNotes.length > 0) {
+        finalHtml += `<div style="margin-top:12px; padding:12px; background-color:#f8fafc; border-left:4px solid var(--primary); border-radius:4px; font-size:13px;">
+            <strong style="color:var(--primary); display:block; margin-bottom:6px;">💡 틀린 부분 짚어보기:</strong>
+            <ul style="margin:0; padding-left:20px; line-height:1.6;">
+                ${summaryNotes.join('')}
+            </ul>
+        </div>`;
+    }
+    return finalHtml;
 }
 
 window.onload = async () => {
@@ -309,10 +294,6 @@ window.onload = async () => {
     try {
         let snap = await getDoc(doc(db, "settings", "examV5"));
         if (snap.exists()) examSettings = snap.data();
-        if (!examSettings.isOpen) {
-            $("btn-exam").classList.add("hidden");
-            $("msg-closed").classList.remove("hidden");
-        }
     } catch (e) { 
         console.error("설정 로딩 실패:", e);
     }
@@ -356,8 +337,6 @@ function startExam() {
         Array.from(document.querySelectorAll(".p-cb:checked")).map(cb => parseInt(cb.value)) : 
         examSettings.selectedIds;
 
-    if (isPracticeMode && targetIds.length === 0) return alert("최소 하나 이상의 성구를 선택해주세요.");
-
     bibleData.filter(b => targetIds.includes(b.id)).forEach(b => {
         rawQuestions.push({ id: b.id, title: b.title, verses: b.verses });
     });
@@ -366,25 +345,17 @@ function startExam() {
 
     let qHtml = '';
     currentQuestions.forEach((q, idx) => {
-        qHtml += `<div class="question-box">
-            <div class="q-title">Q${idx + 1}. ${q.title}</div>`;
-        
+        qHtml += `<div class="question-box"><div class="q-title">Q${idx + 1}. ${q.title}</div>`;
         if (isChunkMode) {
-            qHtml += `<textarea class="ans chunk-ans" data-qi="${idx}" placeholder="이곳에 말씀 전체를 통으로 작성하세요..."></textarea>`;
+            qHtml += `<textarea class="ans chunk-ans" data-qi="${idx}" placeholder="내용 작성..."></textarea>`;
         } else {
             q.verses.forEach((v, vIdx) => {
-                qHtml += `<div>
-                    <span class="verse-label">${v.n}절</span>
-                    <textarea class="ans verse-ans" data-qi="${idx}" data-vi="${vIdx}" placeholder="${v.n}절 말씀을 작성하세요..."></textarea>
-                </div>`;
+                qHtml += `<div><span class="verse-label">${v.n}절</span><textarea class="ans verse-ans" data-qi="${idx}" data-vi="${vIdx}"></textarea></div>`;
             });
         }
         qHtml += `</div>`;
     });
-
     $("question-container").innerHTML = qHtml;
-    $("exam-title").innerText = isPracticeMode ? "연습모드 응시 중" : "본 시험 응시 중";
-    $("exam-info").innerText = `${$("in-region").value} ${$("in-dept").value} ${$("in-role").value} ${$("in-name").value}`;
     showScreen("screen-exam");
 }
 
@@ -409,7 +380,7 @@ window.submitExam = async () => {
             detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
                 <div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${score}%</span></div>
                 <div style="font-size:14px; margin-bottom:12px;">
-                    <strong style="color:#555;">[나의 작성 답안] (틀린 글자 표시)</strong><br>
+                    <strong style="color:#666;">[나의 작성 답안] (틀린 글자 표시)</strong><br>
                     <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div>
                 </div>
                 <div style="font-size:14px;">
@@ -440,7 +411,6 @@ window.submitExam = async () => {
 
                 combinedUserAns.push(`(${v.n}절) ${userVerseAns}`);
                 combinedCorrectText.push(`(${v.n}절) ${v.t}`);
-                
                 chunkVerseDetails.push({ n: v.n, user: userVerseAns, correct: v.t });
             });
 
@@ -485,7 +455,7 @@ window.submitExam = async () => {
             alert("시험 결과가 성공적으로 서버에 저장되었습니다!");
         } catch (e) {
             console.error(e);
-            alert("DB 저장 실패!\n에러 내용: " + e.message);
+            alert("DB 저장 실패!");
         }
     }
     showScreen("screen-result");
@@ -504,7 +474,7 @@ window.adminLogin = async () => {
             auth.signOut();
             location.reload();
         }
-    } catch (e) { alert("로그인 실패"); console.error(e); }
+    } catch (e) { alert("로그인 실패 - 파이어베이스 구글 인증 도메인을 승인해주세요."); console.error(e); }
 };
 
 async function loadAdminData() {
@@ -512,7 +482,7 @@ async function loadAdminData() {
     let chunkHtml = '';
     bibleData.forEach(b => {
         let checked = examSettings.selectedIds.includes(b.id) ? 'checked' : '';
-        chunkHtml += `<label style="display:inline-block; margin-right:15px; margin-bottom:5px;"><input type="checkbox" class="a-cb" value="${b.id}" ${checked}> ${b.title}</label>`
+        chunkHtml += `<label style="display:inline-block; margin-right:15px;"><input type="checkbox" class="a-cb" value="${b.id}" ${checked}> ${b.title}</label>`
     });
     $("admin-chunk-list").innerHTML = chunkHtml;
 
@@ -540,25 +510,14 @@ async function loadAdminData() {
 
         groupedAdminResults = Object.values(groups).map(g => {
             g.maxScore = Math.max(...g.attempts.map(a => a.score));
-            
-            let times = g.attempts.map(a => {
-                if (!a.timestamp) return 0;
-                if (typeof a.timestamp === 'number') return a.timestamp;
-                if (a.timestamp.seconds) return a.timestamp.seconds;
-                if (a.timestamp.toDate) return a.timestamp.toDate().getTime() / 1000;
-                let parsed = new Date(a.timestamp).getTime() / 1000;
-                return isNaN(parsed) ? 0 : parsed;
-            });
+            let times = g.attempts.map(a => a.timestamp?.seconds || 0);
             g.latestTime = Math.max(...times);
-            if (g.latestTime === -Infinity || isNaN(g.latestTime)) g.latestTime = 0;
-            
             return g;
         });
 
         renderAdminTable();
     } catch (error) {
-        console.error("데이터 불러오기 에러:", error);
-        alert("파이어베이스 보안 규칙에 의해 조회가 거부되었습니다.\n현재 관리자 계정 권한 확인 후 다시 시도해 주세요.\n에러: " + error.message);
+        console.error("데이터 로드 실패:", error);
     }
 }
 
@@ -573,32 +532,25 @@ window.renderAdminTable = () => {
     let tbodyHtml = '';
     list.forEach(g => {
         let dateStr = g.latestTime === 0 ? "시간 기록 없음" : new Date(g.latestTime * 1000).toLocaleString();
-        let retakeHtml = g.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${g.attempts.length}회)</span>` : `<span style="color:#999;">X</span>`;
-        
-        tbodyHtml += `<tr><td style="text-align:left;"><div style="font-size:11px; color:#888;">${g.info.region} / ${g.info.dept} / ${g.info.role}</div><strong>${g.info.name}</strong></td><td><strong style="color:var(--primary); font-size:16px;">${g.maxScore}점</strong></td><td>${retakeHtml}</td><td style="font-size:12px; color:#666;">${dateStr}</td><td><button class="btn btn-sm btn-outline" onclick="showUserModal('${g.key}')">상세보기</button></td></tr>`
+        let retakeHtml = g.attempts.length > 1 ? `<span style="color:var(--error); font-weight:bold;">O (${g.attempts.length}회)</span>` : `<span>X</span>`;
+        tbodyHtml += `<tr><td style="text-align:left;"><div style="font-size:11px; color:#888;">${g.info.region}/${g.info.dept}/${g.info.role}</div><strong>${g.info.name}</strong></td><td><strong>${g.maxScore}점</strong></td><td>${retakeHtml}</td><td>${dateStr}</td><td><button class="btn btn-sm btn-outline" onclick="showUserModal('${g.key}')">상세보기</button></td></tr>`
     });
-
-    let tbody = $("admin-res-table").querySelector("tbody");
-    if (tbodyHtml === '') tbodyHtml = `<tr><td colspan="5">응시 기록이 없습니다.</td></tr>`;
-    tbody.innerHTML = tbodyHtml;
+    $("admin-res-table").querySelector("tbody").innerHTML = tbodyHtml || `<tr><td colspan="5">기록이 없습니다.</td></tr>`;
 };
 
 window.showUserModal = (key) => {
     let group = groupedAdminResults.find(g => g.key === key);
     if (!group) return;
 
-    $("modal-title").innerText = `[${group.info.name}] 님의 응시 내역 (최고: ${group.maxScore}점)`;
-    
-    let navHtml = '<div style="margin-bottom:15px; display:flex; gap:5px; flex-wrap:wrap;">';
+    $("modal-title").innerText = `[${group.info.name}] 님의 상세 응시 내역`;
+    let navHtml = '<div style="margin-bottom:15px; display:flex; gap:5px;">';
     group.attempts.forEach((att, idx) => {
-        let btnClass = idx === group.attempts.length - 1 ? 'btn-primary' : 'btn-secondary';
-        navHtml += `<button class="btn btn-sm ${btnClass}" style="margin:0;" onclick="renderAttemptDetail('${key}', ${idx})">${idx + 1}회차 (${att.score}점)</button>`
+        navHtml += `<button class="btn btn-sm btn-secondary" onclick="renderAttemptDetail('${key}', ${idx})">${idx + 1}회차 (${att.score}점)</button>`
     });
-    navHtml += '</div>';
+    navHtml += '</div><div id="attempt-detail-container"></div>';
 
-    $("modal-body").innerHTML = navHtml + `<div id="attempt-detail-container"></div>`;
+    $("modal-body").innerHTML = navHtml;
     $("modal-detail").classList.remove("hidden");
-    
     renderAttemptDetail(key, group.attempts.length - 1);
 };
 
@@ -606,83 +558,33 @@ window.renderAttemptDetail = (key, attIdx) => {
     let group = groupedAdminResults.find(g => g.key === key);
     let att = group.attempts[attIdx];
     
-    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;"><strong style="font-size:16px;">${attIdx + 1}회차 답안 (점수: ${att.score}점)</strong><button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${key}', '${att.id}')">이 회차 삭제</button></div>`;
+    let html = `<h4>${attIdx + 1}회차 결과 보고서</h4>`;
 
-    if (!att.details || !Array.isArray(att.details) || att.details.length === 0) {
-        html += '<p>상세 데이터가 없습니다. (오래된 데이터 형식)</p>';
-    } else {
-        att.details.forEach(det => {
-            let uAns = det.user || '(기록 없음)';
-            let cAns = det.correct || '(정답 데이터 없음)';
-            let title = det.title || '문제';
-            let acc = det.acc !== undefined ? det.acc : 0;
-            let badgeColor = acc === 100 ? 'var(--success)' : 'var(--error)';
-            
-            if (det.verseDetails && Array.isArray(det.verseDetails)) {
-                let innerVersesHtml = '';
-                det.verseDetails.forEach(v => {
-                    let vDiffHtml = renderDiff(v.user, v.correct); 
-                    innerVersesHtml += `<div style="margin-top: 8px; padding: 10px; border-left: 3px solid var(--secondary); background: #f8fafc; margin-bottom: 8px;">
-                        <div style="font-weight: bold; font-size: 13px; margin-bottom: 4px;">${v.n}절</div>
-                        <div style="font-size:13px; margin-bottom:4px;"><strong style="color:#666;">[작성]</strong> ${vDiffHtml}</div>
-                        <div style="font-size:13px; color:#065f46;"><strong style="color:#10b981;">[정답]</strong> ${v.correct}</div>
-                    </div>`;
-                });
-                
-                html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
-                    <strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span>
-                    ${innerVersesHtml}
-                </div>`;
-            } 
-            else {
-                let cleanUser = uAns.replace(/\(\d+절\)\s*/g, '');
-                let cleanCorrect = cAns.replace(/\(\d+절\)\s*/g, '');
-                let diffHtml = renderDiff(cleanUser, cleanCorrect);
-                
-                html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;"><strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span><div style="margin-top:12px; font-size:13px;"><strong style="color:#666;">[제출 답안] (틀린 글자 표시)</strong><div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div></div><div style="margin-top:10px; font-size:13px;"><strong style="color:#10b981;">[총 정답]</strong><div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cleanCorrect}</div></div></div>`
-            }
-        });
-    }
+    att.details.forEach(det => {
+        let uAns = det.user || '';
+        let cAns = det.correct || '';
+        let title = det.title || '문제';
+        
+        let diffHtml = renderDiff(uAns, cAns);
+        
+        html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
+            <strong style="color:var(--primary); font-size:15px;">${title}</strong>
+            <div style="margin-top:10px;">
+                <strong>[원본 데이터 대조 결과]</strong>
+                <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${uAns.trim() ? diffHtml : '<span style="color:#999;">(실제 미입력 상태 혹은 공백 제출)</span>'}</div>
+            </div>
+            <div style="margin-top:10px;">
+                <strong style="color:#10b981;">[시스템 기준 정답]</strong>
+                <div class="result-content-box" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#065f46;">${cAns}</div>
+            </div>
+        </div>`;
+    });
     $("attempt-detail-container").innerHTML = html;
 };
 
-window.deleteAttempt = async (key, docId) => {
-    if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?\n삭제 후 복구할 수 없으며, 최고 점수가 변동될 수 있습니다.")) return;
-    try {
-        await deleteDoc(doc(db, "examResultsV5", docId));
-        alert("삭제되었습니다.");
-        $('modal-detail').classList.add('hidden');
-        loadAdminData();
-    } catch (e) { alert("삭제 실패: " + e.message); console.error(e); }
-};
-
-window.downloadExcel = () => {
-    if (groupedAdminResults.length === 0) return alert("다운로드할 데이터가 없습니다.");
-    let csv = "\uFEFF지역,부서,직책,이름,최고점수,총응시횟수,최근응시일시\n";
-    groupedAdminResults.forEach(g => {
-        let dateStr = g.latestTime === 0 ? "시간 기록 없음" : new Date(g.latestTime * 1000).toLocaleString();
-        let row = [g.info.region, g.info.dept, g.info.role, g.info.name, g.maxScore, g.attempts.length, dateStr].map(v => `"${String(v).replace(/"/g, '""')}"`);
-        csv += row.join(",") + "\n";
-    });
-
-    let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    let link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `사명자_실력점검_결과V5_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-};
-
-window.saveAdminSettings = async () => {
-    try {
-        let isOpen = $("set-isopen").value === "true";
-        let selectedIds = Array.from(document.querySelectorAll(".a-cb:checked")).map(cb => parseInt(cb.value));
-        if (selectedIds.length === 0) return alert("최소 하나 이상의 성구를 본 시험용으로 선택해주세요.");
-        
-        await setDoc(doc(db, "settings", "examV5"), { isOpen, selectedIds });
-        alert("설정이 저장되었습니다.");
-        location.reload();
-    } catch (e) { alert("저장 실패 권한문제일 수 있습니다: " + e.message); console.error(e); }
-};
+window.deleteAttempt = () => { alert("데이터 열람 모드입니다."); };
+window.saveAdminSettings = () => { alert("데이터 열람 모드입니다."); };
+window.downloadExcel = () => { alert("데이터 열람 모드입니다."); };
 </script>
 </body>
 </html>
