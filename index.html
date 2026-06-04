@@ -179,6 +179,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, deleteDoc, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
+// [중요] 기존에 사용하시던 진짜 Firebase 접속 정보입니다. 절대 건드리지 마세요!
 const firebaseConfig = {
     apiKey: "AIzaSyD90YkT77h64XOfz2U96G9S7Csd0OhEVvk",
     authDomain: "cheongosi.firebaseapp.com",
@@ -224,29 +225,27 @@ function calculateScore(userAns, correctAns) {
 }
 
 // =========================================================================
-// 🚀 띄어쓰기 완전 무시 (글자 단위) + 틀린 '글자' 옆에 예쁘게 정답 노출!
+// 🚀 띄어쓰기 완전 무시 (글자 단위) + 틀린 '글자' 옆에 정답 표시 UI 완벽 결합
 // =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
     if (typeof Diff === 'undefined') return userAns;
 
-    // 띄어쓰기 도미노 현상을 원천 차단하기 위해 글자 단위(diffChars)로 대조합니다.
+    // 무조건 글자 단위(diffChars)로 대조하여 띄어쓰기 도미노 밀림 현상 방지
     let diffs = Diff.diffChars(correctAns, userAns);
     let html = '';
     let summaryNotes = [];
 
-    // 에러 발생 시 글자들을 모아둘 버퍼
     let errUser = '';
     let errCorrect = '';
 
-    // 버퍼에 쌓인 에러를 화면에 예쁜 꼬리표로 방출하는 내부 함수
     function flushErrors() {
         if (errUser || errCorrect) {
             let cUser = errUser.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
             let cCorrect = errCorrect.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
 
-            // 💡 띄어쓰기나 부호 차이만 날 경우 에러 표시 없이 정답의 띄어쓰기 형태로 투명 복원
+            // 💡 단순 띄어쓰기 차이는 에러 없이 정답의 띄어쓰기대로 예쁘게 투명 복원
             if (cUser.length === 0 && cCorrect.length === 0) {
                 html += errCorrect;
             } else {
@@ -500,7 +499,7 @@ window.adminLogin = async () => {
 };
 
 // =========================================================================
-// 🚑 [100% 원상 복구] 정상 작동하던 그 쿼리문으로 되돌려 명단 부활
+// 🚑 [강제 복구 완료] 에러를 내던 필터를 모두 제거하고 무조건 100% 긁어옵니다
 // =========================================================================
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
@@ -512,16 +511,16 @@ async function loadAdminData() {
     $("admin-chunk-list").innerHTML = chunkHtml;
 
     try {
-        // [원상 복구 완료] 관리자님이 기존에 문제없이 잘 쓰시던 그 필터 그대로 부활시켰습니다.
-        let q = query(collection(db, "examResultsV5"), where("region", ">=", ""));
+        // [수정 완료] 검색 조건(where)을 완전히 지우고 컬렉션 전체를 날것 그대로 가져옵니다.
+        let q = collection(db, "examResultsV5");
         let snap = await getDocs(q);
         let groups = {};
 
         snap.forEach(docSnap => {
             let data = docSnap.data();
-            if(!data.name && !data.region) return; 
-
             data.id = docSnap.id;
+            
+            // 이름과 지역이 없더라도 에러 내지 않고 '미상'으로 강제 복원
             let region = data.region || "미상";
             let dept = data.dept || "미상";
             let role = data.role || "미상";
