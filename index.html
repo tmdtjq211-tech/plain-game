@@ -223,42 +223,70 @@ function calculateScore(userAns, correctAns) {
     return 0;
 }
 
-// 💡 마우스 대지 않아도 정답이 단어 옆에 바로 고정 노출되는 가시성 극대화 로직
+// =========================================================================
+// 🚀 띄어쓰기 도미노 붕괴 현상 완벽 해결! (글자 단위 대조 + 깔끔한 UI 융합형)
+// =========================================================================
 function renderDiff(userAns, correctAns) {
     if (!userAns) return '<span style="color:#999;">(미입력)</span>';
     if (!correctAns) correctAns = "";
     if (typeof Diff === 'undefined') return userAns;
 
-    let uWords = userAns.split(/\s+/);
-    let cWords = correctAns.split(/\s+/);
-    const cleanRegex = /[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g;
-
-    let diffs = Diff.diffArrays(cWords.map(w => w.replace(cleanRegex, '')), uWords.map(w => w.replace(cleanRegex, '')));
-    
-    let userDisplayHtml = '';
+    // 띄어쓰기 도미노 현상을 막기 위해 무조건 '글자 단위(diffChars)'로 쪼갭니다.
+    let diffs = Diff.diffChars(correctAns, userAns);
+    let html = '';
     let summaryNotes = [];
-    let maxLength = Math.max(uWords.length, cWords.length);
 
-    for (let i = 0; i < maxLength; i++) {
-        let uW = uWords[i] || '';
-        let cW = cWords[i] || '';
-        let uClean = uW.replace(cleanRegex, '');
-        let cClean = cW.replace(cleanRegex, '');
+    // 에러 글자들을 모아뒀다가 한 번에 꼬리표로 출력하기 위한 버퍼
+    let errUser = '';
+    let errCorrect = '';
 
-        if (uClean === cClean && uClean.length > 0) {
-            userDisplayHtml += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${uW}</span> `;
-        } else if (uClean.length > 0 || cClean.length > 0) {
-            if (uW) {
-                userDisplayHtml += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700; background-color:#fee2e2; padding:0 3px; border-radius:4px;">${uW}</span><span style="color:#059669; font-size:12px; font-weight:bold; margin-right:5px; background-color:#ecfdf5; padding:1px 4px; border-radius:4px; border:1px solid #a7f3d0;">(정답:${cW})</span> `;
-                summaryNotes.push(`<li><strong style="color:var(--error);">${uW}</strong> <span style="color:#666;">❌ ➡️</span> <strong style="color:var(--success);">${cW ? cW : '(단어 삭제 필요)'}</strong> <span style="color:var(--success);">⭕</span></li>`);
-            } else if (cW) {
-                userDisplayHtml += `<span style="color:#d97706; background-color:#fffbeb; font-size:12px; font-weight:bold; padding:1px 4px; border-radius:4px; border:1px solid #fef3c7; margin-right:5px;">[단어누락:${cW}]</span> `;
-                summaryNotes.push(`<li><strong style="color:#9a3412; background-color:#ffedd5; padding:0 4px; border-radius:4px;">단어 누락</strong> <span style="color:#666;">➡️</span> 원래 들어가야 할 단어: <strong style="color:var(--success);">${cW}</strong> <span style="color:var(--success);">⭕</span></li>`);
+    function flushErrors() {
+        if (errUser || errCorrect) {
+            // 순수 글자 알맹이만 남겨서 진짜 에러인지(띄어쓰기/기호 차이인지) 검사
+            let cUser = errUser.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
+            let cCorrect = errCorrect.replace(/[\s\.\,\?\!\'\"0-9\(\)\[\]\|\~\-\>\:\<\&]/g, '');
+
+            if (cUser.length === 0 && cCorrect.length === 0) {
+                // 💡 띄어쓰기나 기호 차이만 날 경우: 에러 표시 없이 정답의 띄어쓰기를 그대로 출력하여 복원합니다.
+                html += errCorrect;
+            } else {
+                // 진짜 오타/누락이 발생한 경우에만 UI 태그를 씌워 출력
+                if (cUser.length > 0) {
+                    html += `<span class="diff-error" style="color:var(--error); text-decoration:underline; font-weight:700; background-color:#fee2e2; border-radius:4px;">${errUser}</span>`;
+                }
+                if (cCorrect.length > 0) {
+                    if (cUser.length > 0) {
+                        html += `<span style="color:#059669; font-size:12px; font-weight:bold; background-color:#ecfdf5; border-radius:4px; border:1px solid #a7f3d0; margin-left:2px; margin-right:4px;">(정답:${errCorrect})</span>`;
+                        summaryNotes.push(`<li><strong style="color:var(--error);">${errUser}</strong> <span style="color:#666;">❌ ➡️</span> <strong style="color:var(--success);">${errCorrect}</strong> <span style="color:var(--success);">⭕</span></li>`);
+                    } else {
+                        html += `<span style="color:#d97706; background-color:#fffbeb; font-size:12px; font-weight:bold; border-radius:4px; border:1px solid #fef3c7; margin-right:4px;">[빠짐:${errCorrect}]</span>`;
+                        summaryNotes.push(`<li><strong style="color:#9a3412; background-color:#ffedd5; padding:0 4px; border-radius:4px;">빠진 부분</strong> <span style="color:#666;">➡️</span> 원래 들어가야 할 내용: <strong style="color:var(--success);">${errCorrect}</strong> <span style="color:var(--success);">⭕</span></li>`);
+                    }
+                } else if (cUser.length > 0 && cCorrect.length === 0) {
+                    summaryNotes.push(`<li><strong style="color:var(--error);">${errUser}</strong> <span style="color:#666;">❌ ➡️</span> <span style="color:var(--success);">(불필요한 글자) ⭕</span></li>`);
+                }
             }
+            // 버퍼 초기화
+            errUser = '';
+            errCorrect = '';
         }
     }
 
-    let finalHtml = `<div style="line-height:2.0; font-size:15px;">${userDisplayHtml.trim()}</div>`;
+    diffs.forEach(part => {
+        if (part.added) {
+            errUser += part.value; // 유저가 잘못 쓴 글자 누적
+        } else if (part.removed) {
+            errCorrect += part.value; // 빠트린 정답 글자 누적
+        } else {
+            // 일치하는 구간이 나오면 앞서 누적된 에러들을 꼬리표로 묶어 출력하고 넘어갑니다.
+            flushErrors();
+            html += `<span class="diff-correct" style="color:var(--correct-blue); font-weight:700;">${part.value}</span>`;
+        }
+    });
+    // 마지막에 남은 에러 처리
+    flushErrors();
+
+    let finalHtml = `<div style="line-height:2.0; font-size:15px;">${html}</div>`;
     
     if (summaryNotes.length > 0) {
         finalHtml += `<div style="margin-top:12px; padding:12px; background-color:#f8fafc; border-left:4px solid var(--primary); border-radius:4px; font-size:13px;">
@@ -378,7 +406,7 @@ window.submitExam = async () => {
             detailsHtml += `<div class="question-box" style="margin-bottom:15px;">
                 <div class="q-title">${q.title} <span class="acc-badge ${badgeClass}">정확도 ${score}%</span></div>
                 <div style="font-size:14px; margin-bottom:12px;">
-                    <strong style="color:#666;">[나의 작성 답안] (틀린 단어 표시)</strong><br>
+                    <strong style="color:#666;">[나의 작성 답안] (틀린 부분 표시)</strong><br>
                     <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${diffHtml}</div>
                 </div>
                 <div style="font-size:14px;">
@@ -475,7 +503,6 @@ window.adminLogin = async () => {
     } catch (e) { alert("로그인 실패 - 파이어베이스 구글 인증 도메인을 확인해주세요."); console.error(e); }
 };
 
-// 💡 멱살 잡고 다 끌어오는 데이터 로드 로직 (where 조건 필터 완전 삭제하여 강제 전체 로드)
 async function loadAdminData() {
     $("set-isopen").value = examSettings.isOpen.toString();
     let chunkHtml = '';
@@ -486,7 +513,7 @@ async function loadAdminData() {
     $("admin-chunk-list").innerHTML = chunkHtml;
 
     try {
-        // [수정됨] where("region", ">=", "") 필터를 아예 지우고 통째로 긁어옵니다. 누락 0% 보장!
+        // [복구 완료] 검색 필터를 완전히 삭제하여 파이어베이스에 있는 데이터를 무조건 100% 긁어오게 만들었습니다.
         let q = query(collection(db, "examResultsV5"));
         let snap = await getDocs(q);
         let groups = {};
@@ -518,7 +545,6 @@ async function loadAdminData() {
         renderAdminTable();
     } catch (error) {
         console.error("데이터 로드 실패:", error);
-        alert("데이터 로드 에러입니다. 콘솔을 확인해주세요.");
     }
 }
 
@@ -559,7 +585,6 @@ window.renderAttemptDetail = (key, attIdx) => {
     let group = groupedAdminResults.find(g => g.key === key);
     let att = group.attempts[attIdx];
     
-    // 💡 이 회차 삭제 버튼 100% 정상 복구
     let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:#f1f5f9; padding:10px; border-radius:8px;"><strong style="font-size:16px;">${attIdx + 1}회차 답안 (점수: ${att.score}점)</strong><button class="btn btn-sm btn-danger" style="margin:0;" onclick="deleteAttempt('${key}', '${att.id}')">이 회차 삭제</button></div>`;
 
     if (!att.details || !Array.isArray(att.details) || att.details.length === 0) {
@@ -594,7 +619,7 @@ window.renderAttemptDetail = (key, attIdx) => {
                 html += `<div style="margin-bottom:15px; border:1px solid #ddd; padding:15px; border-radius:8px;">
                     <strong style="color:var(--primary);">${title}</strong> <span style="color:white; background:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:12px; font-weight:bold; margin-left:5px;">${acc}%</span>
                     <div style="margin-top:12px; font-size:13px;">
-                        <strong style="color:#666;">[제출 답안] (틀린 단어 표시)</strong>
+                        <strong style="color:#666;">[제출 답안] (틀린 부분 표시)</strong>
                         <div class="result-content-box" style="background:#f9f9f9; border:1px solid #eee;">${uAns.trim() ? diffHtml : '<span style="color:#999;">(미입력 상태)</span>'}</div>
                     </div>
                     <div style="margin-top:10px; font-size:13px;">
@@ -608,7 +633,7 @@ window.renderAttemptDetail = (key, attIdx) => {
     $("attempt-detail-container").innerHTML = html;
 };
 
-// 💡 삭제, 저장, 다운로드 기능 100% 정상 복구
+// 💡 [복구 완료] 삭제, 설정 저장, 엑셀 다운로드 기능 완벽 활성화
 window.deleteAttempt = async (key, docId) => {
     if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?\n삭제 후 복구할 수 없으며, 최고 점수가 변동될 수 있습니다.")) return;
     try {
