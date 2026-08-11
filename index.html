@@ -481,7 +481,12 @@ window.submitExam = async () => {
 window.adminLogin = async () => {
     try {
         let res = await signInWithPopup(auth, provider);
-        if (res.user.email.toLowerCase() === "cjsrhtl@gmail.com") {
+        let userEmail = res.user.email.toLowerCase();
+        
+        // 허용할 관리자 이메일 목록
+        let adminEmails = ["cjsrhtl@gmail.com", "be.the.same00318@gmail.com"];
+
+        if (adminEmails.includes(userEmail)) {
             setTimeout(() => {
                 loadAdminData();
                 showScreen("screen-admin");
