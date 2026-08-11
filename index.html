@@ -305,7 +305,7 @@ window.onload = async () => {
     });
 
     try {
-        let snap = await getDoc(doc(db, "settings", "examV5"));
+        let snap = await getDoc(doc(db, "settings", "examv6"));
         if (snap.exists()) examSettings = snap.data();
         if (!examSettings.isOpen) {
             $("btn-exam").classList.add("hidden");
@@ -459,7 +459,7 @@ window.submitExam = async () => {
 
     if (!isPracticeMode) {
         try {
-            await addDoc(collection(db, "examResultsV5"), {
+            await addDoc(collection(db, "examResultsv6"), {
                 region: $("in-region").value,
                 dept: $("in-dept").value,
                 role: $("in-role").value,
@@ -508,7 +508,7 @@ async function loadAdminData() {
 
     try {
         // [수정 완료] 검색 조건(where)을 완전히 지우고 컬렉션 전체를 날것 그대로 가져옵니다.
-        let q = collection(db, "examResultsV5");
+        let q = collection(db, "examResultsv6");
         let snap = await getDocs(q);
         let groups = {};
 
@@ -637,7 +637,7 @@ window.renderAttemptDetail = (key, attIdx) => {
 window.deleteAttempt = async (key, docId) => {
     if (!confirm("해당 회차의 기록을 정말 삭제하시겠습니까?\n삭제 후 복구할 수 없으며, 최고 점수가 변동될 수 있습니다.")) return;
     try {
-        await deleteDoc(doc(db, "examResultsV5", docId));
+        await deleteDoc(doc(db, "examResultsv6", docId));
         alert("삭제되었습니다.");
         $('modal-detail').classList.add('hidden');
         loadAdminData();
@@ -656,7 +656,7 @@ window.downloadExcel = () => {
     let blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     let link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `사명자_실력점검_결과V5_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `사명자_실력점검_결과v6_${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
 };
 
@@ -666,7 +666,7 @@ window.saveAdminSettings = async () => {
         let selectedIds = Array.from(document.querySelectorAll(".a-cb:checked")).map(cb => parseInt(cb.value));
         if (selectedIds.length === 0) return alert("최소 하나 이상의 성구를 본 시험용으로 선택해주세요.");
         
-        await setDoc(doc(db, "settings", "examV5"), { isOpen, selectedIds });
+        await setDoc(doc(db, "settings", "examv6"), { isOpen, selectedIds });
         alert("설정이 저장되었습니다.");
         location.reload();
     } catch (e) { alert("저장 실패 권한문제일 수 있습니다: " + e.message); console.error(e); }
